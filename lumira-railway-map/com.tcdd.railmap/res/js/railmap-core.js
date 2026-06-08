@@ -1,14 +1,17 @@
 // ============================================================================
 //  TCDD Railway Map - core engine  (loaded before component.js)
 //  ---------------------------------------------------------------------------
-//  A small, dependency-free, Canvas based "slippy map":
-//    * Web Mercator (EPSG:3857) projection, pan + zoom (mouse / wheel / touch)
-//    * optional XYZ raster tile basemap (browser fetches tiles; degrades to a
-//      plain background colour when no tile URL is configured -> works offline)
-//    * any number of GeoJSON vector layers (LineString / MultiLineString /
-//      Polygon / Point), each independently styleable and toggleable
-//    * per-segment colouring via colour ramps (for measure distribution)
-//    * hit testing (hover + click) returning the nearest feature
+//  A dependency-free, Canvas based "slippy map" tuned for railway analytics:
+//    * Web Mercator (EPSG:3857) projection; pan / wheel-zoom / box-zoom (shift)
+//      / dblclick-zoom / keyboard; touch pan & pinch-friendly.
+//    * optional XYZ raster basemap (browser fetches tiles) with presets;
+//      degrades to a flat background colour offline.
+//    * any number of vector layers (LineString/MultiLineString/Polygon/Point),
+//      each with casing, dash, animated "flow" dashes, direction arrows,
+//      labels, per-feature style, opacity, hover emphasis and selection.
+//    * data symbology helpers: colour ramps, classification (equal / quantile /
+//      natural-breaks Jenks) and categorical palettes.
+//    * hit testing, getBounds/center/zoom, scale (m/px), and PNG snapshot.
 //  No Leaflet, no Google Maps, no API key. ES5 / IE10+ safe.
 // ============================================================================
 if (!window.TCDDRailMap) {
@@ -22,7 +25,19 @@ if (!window.TCDDRailMap) {
 			green:   ["#e5f5e0", "#74c476", "#00441b"],
 			heat:    ["#ffffb2", "#fd8d3c", "#bd0026"],
 			purple:  ["#efedf5", "#9e9ac8", "#54278f"],
+			viridis: ["#440154", "#21908d", "#fde725"],
+			cool:    ["#2c7fb8", "#7fcdbb", "#edf8b1"],
 			gray:    ["#f0f0f0", "#969696", "#252525"]
+		};
+		// distinct palette for categorical symbology
+		var CATPAL = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc949", "#af7aa1", "#ff9da7", "#9c755f", "#bab0ab", "#1f77b4", "#ff7f0e"];
+		// basemap presets (end-user browser fetches the tiles)
+		var BASEMAPS = {
+			osm:            { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", subs: ["a", "b", "c"], label: "OpenStreetMap" },
+			"carto-light":  { url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", subs: ["a", "b", "c", "d"], label: "Carto Light" },
+			"carto-dark":   { url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", subs: ["a", "b", "c", "d"], label: "Carto Dark" },
+			"carto-voyager":{ url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png", subs: ["a", "b", "c", "d"], label: "Carto Voyager" },
+			none:           { url: "", subs: [], label: "Yok (offline)" }
 		};
 
 		function hexToRgb(h) {
@@ -34,19 +49,81 @@ if (!window.TCDDRailMap) {
 			function hx(x) { x = Math.max(0, Math.min(255, Math.round(x))); var t = x.toString(16); return t.length < 2 ? "0" + t : t; }
 			return "#" + hx(r) + hx(g) + hx(b);
 		}
-		// t in [0,1] -> interpolated colour across the ramp's stops
 		function rampColor(name, t) {
 			var stops = RAMPS[("" + name).toLowerCase()] || RAMPS.blue;
 			if (t == null || isNaN(t)) { return stops[0]; }
 			t = t < 0 ? 0 : (t > 1 ? 1 : t);
 			if (stops.length === 1) { return stops[0]; }
-			var seg = t * (stops.length - 1);
-			var i = Math.floor(seg);
+			var seg = t * (stops.length - 1), i = Math.floor(seg);
 			if (i >= stops.length - 1) { return stops[stops.length - 1]; }
 			var f = seg - i, a = hexToRgb(stops[i]), b = hexToRgb(stops[i + 1]);
 			return rgbToHex(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
 		}
 		function rampStops(name) { return RAMPS[("" + name).toLowerCase()] || RAMPS.blue; }
+		function categoryColor(i) { return CATPAL[((i % CATPAL.length) + CATPAL.length) % CATPAL.length]; }
+
+		// ---- classification --------------------------------------------------
+		function sortedValues(values) {
+			var a = [], k;
+			for (k in values) { if (values.hasOwnProperty(k)) { var v = values[k]; if (v != null && !isNaN(v)) { a.push(+v); } } }
+			a.sort(function (x, y) { return x - y; });
+			return a;
+		}
+		function quantile(sorted, p) {
+			if (!sorted.length) { return 0; }
+			var idx = (sorted.length - 1) * p, lo = Math.floor(idx), hi = Math.ceil(idx);
+			if (lo === hi) { return sorted[lo]; }
+			return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+		}
+		// returns class edges (length n+1): [min, b1, ..., max]
+		function classify(sorted, method, n) {
+			n = Math.max(1, n | 0);
+			if (!sorted.length) { return [0, 1]; }
+			var min = sorted[0], max = sorted[sorted.length - 1], i, edges;
+			if (min === max) { edges = []; for (i = 0; i <= n; i++) { edges.push(min); } return edges; }
+			method = ("" + (method || "quantile")).toLowerCase();
+			if (method === "equal") { edges = []; for (i = 0; i <= n; i++) { edges.push(min + (max - min) * i / n); } return edges; }
+			if (method === "jenks") { return jenksBreaks(sorted, n); }
+			edges = [min]; for (i = 1; i < n; i++) { edges.push(quantile(sorted, i / n)); } edges.push(max); return edges;   // quantile
+		}
+		function classIndex(edges, value) {
+			var n = edges.length - 1;
+			for (var i = 1; i < n; i++) { if (value < edges[i]) { return i - 1; } }
+			return n - 1;
+		}
+		// Fisher-Jenks natural breaks (subsampled for large inputs to stay fast)
+		function jenksBreaks(data, nClasses) {
+			if (data.length > 1200) {                                  // subsample preserving distribution
+				var step = data.length / 1000, s = [];
+				for (var x = 0; x < data.length; x += step) { s.push(data[Math.floor(x)]); }
+				s[s.length] = data[data.length - 1]; data = s;
+			}
+			var n = data.length;
+			if (nClasses >= n) { var e = [data[0]]; for (var q = 1; q <= nClasses; q++) { e.push(data[Math.min(n - 1, q - 1)]); } return e; }
+			var lc = [], op = [], i, j;
+			for (i = 0; i <= n; i++) { lc.push([]); op.push([]); for (j = 0; j <= nClasses; j++) { lc[i].push(0); op[i].push(0); } }
+			for (i = 1; i <= nClasses; i++) { lc[1][i] = 1; op[1][i] = 0; for (j = 2; j <= n; j++) { lc[j][i] = Infinity; } }
+			var v = 0;
+			for (var l = 2; l <= n; l++) {
+				var s1 = 0, s2 = 0, w = 0;
+				for (var m = 1; m <= l; m++) {
+					var i3 = l - m + 1, val = data[i3 - 1];
+					s2 += val * val; s1 += val; w++;
+					v = s2 - (s1 * s1) / w;
+					var i4 = i3 - 1;
+					if (i4 !== 0) { for (var jj = 2; jj <= nClasses; jj++) { if (lc[l][jj] >= (v + lc[i4][jj - 1])) { op[l][jj] = i3; lc[l][jj] = v + lc[i4][jj - 1]; } } }
+				}
+				lc[l][1] = v; op[l][1] = 1;
+			}
+			var k = n, kclass = []; for (i = 0; i <= nClasses; i++) { kclass.push(0); }
+			kclass[nClasses] = data[n - 1]; kclass[0] = data[0];
+			var cn = nClasses;
+			while (cn > 1) { var idx = op[k][cn] - 2; kclass[cn - 1] = data[idx < 0 ? 0 : idx]; k = op[k][cn] - 1; cn--; }
+			return kclass;
+		}
+
+		function metersPerPixel(lat, zoom) { return 156543.03392804097 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom); }
+		function hyp(dx, dy) { return Math.sqrt(dx * dx + dy * dy); }
 
 		// ---- Web Mercator projection ----------------------------------------
 		var TILE = 256;
@@ -63,7 +140,6 @@ if (!window.TCDDRailMap) {
 		}
 
 		// ---- GeoJSON normalisation ------------------------------------------
-		// Returns an array of feature objects: {id, name, props, lines:[[ [lng,lat] ]], points:[[lng,lat]], bbox:[minLng,minLat,maxLng,maxLat]}
 		function normalizeGeoJson(gj, idProp, nameProp) {
 			var out = [];
 			if (!gj) { return out; }
@@ -79,12 +155,11 @@ if (!window.TCDDRailMap) {
 				if (!lines.length && !points.length) { continue; }
 				var id = props[idProp];
 				if (id == null && f.id != null) { id = f.id; }
-				var feat = {
+				out.push({
 					id: (id == null ? null : "" + id),
 					name: (nameProp && props[nameProp] != null) ? ("" + props[nameProp]) : null,
 					props: props, lines: lines, points: points, bbox: bboxOf(lines, points)
-				};
-				out.push(feat);
+				});
 			}
 			return out;
 		}
@@ -102,8 +177,8 @@ if (!window.TCDDRailMap) {
 			}
 		}
 		function bboxOf(lines, points) {
-			var b = [Infinity, Infinity, -Infinity, -Infinity], i, j, p;
-			for (i = 0; i < lines.length; i++) { for (j = 0; j < lines[i].length; j++) { p = lines[i][j]; ext(b, p); } }
+			var b = [Infinity, Infinity, -Infinity, -Infinity], i, j;
+			for (i = 0; i < lines.length; i++) { for (j = 0; j < lines[i].length; j++) { ext(b, lines[i][j]); } }
 			for (i = 0; i < points.length; i++) { ext(b, points[i]); }
 			return b;
 		}
@@ -115,26 +190,19 @@ if (!window.TCDDRailMap) {
 
 		// ====================================================================
 		//  Multi-format network parsing  (GeoJSON / TopoJSON / KML / GPX / JSON)
-		//  parseNetwork(raw, format) always returns a GeoJSON FeatureCollection,
-		//  which normalizeGeoJson() then turns into internal features. Coordinates
-		//  are expected as WGS84 [lng, lat].
 		// ====================================================================
 		function detectFormat(raw) {
 			if (raw == null) { return "geojson"; }
 			if (typeof raw === "object") { return (raw.type === "Topology") ? "topojson" : "geojson"; }
 			var s = ("" + raw).replace(/^﻿/, "").replace(/^\s+/, "");
-			if (s.charAt(0) === "<") {                                 // XML family
-				if (/<gpx[\s>]/i.test(s)) { return "gpx"; }
-				return "kml";
-			}
-			try {                                                       // JSON family
+			if (s.charAt(0) === "<") { if (/<gpx[\s>]/i.test(s)) { return "gpx"; } return "kml"; }
+			try {
 				var o = JSON.parse(s);
 				if (o && o.type === "Topology") { return "topojson"; }
 				if (o && (o.type === "FeatureCollection" || o.type === "Feature" || o.coordinates)) { return "geojson"; }
 				return "json";
 			} catch (e) { return "geojson"; }
 		}
-
 		function parseNetwork(raw, format) {
 			format = (format && format !== "auto") ? ("" + format).toLowerCase() : detectFormat(raw);
 			switch (format) {
@@ -142,21 +210,17 @@ if (!window.TCDDRailMap) {
 				case "gpx": return gpxToGeoJson(raw);
 				case "topojson": return topojsonToGeoJson(typeof raw === "string" ? JSON.parse(raw) : raw);
 				case "json": return plainJsonToGeoJson(typeof raw === "string" ? JSON.parse(raw) : raw);
-				default: return (typeof raw === "string") ? JSON.parse(raw) : raw;   // geojson
+				default: return (typeof raw === "string") ? JSON.parse(raw) : raw;
 			}
 		}
-
-		// --- XML helpers (KML / GPX) -----------------------------------------
 		function xmlDoc(str) {
 			if (typeof DOMParser === "undefined") { throw new Error("DOMParser yok (XML ayrıştırılamıyor)"); }
 			return new DOMParser().parseFromString("" + str, "text/xml");
 		}
-		function tags(node, name) {                                     // namespace-agnostic
-			return node.getElementsByTagNameNS ? node.getElementsByTagNameNS("*", name) : node.getElementsByTagName(name);
-		}
+		function tags(node, name) { return node.getElementsByTagNameNS ? node.getElementsByTagNameNS("*", name) : node.getElementsByTagName(name); }
 		function textOf(node, name) { var t = tags(node, name); return t.length ? trim(t[0].textContent) : null; }
 		function trim(s) { return s == null ? null : ("" + s).replace(/^\s+|\s+$/g, ""); }
-		function parseCoordList(txt) {                                  // "lng,lat[,alt] lng,lat ..."
+		function parseCoordList(txt) {
 			var out = [], toks = trim(("" + txt).replace(/\s+/g, " ")).split(" ");
 			for (var i = 0; i < toks.length; i++) {
 				if (!toks[i]) { continue; }
@@ -165,8 +229,6 @@ if (!window.TCDDRailMap) {
 			}
 			return out;
 		}
-
-		// --- KML --------------------------------------------------------------
 		function kmlToGeoJson(str) {
 			var doc = xmlDoc(str), feats = [], pms = tags(doc, "Placemark");
 			for (var i = 0; i < pms.length; i++) {
@@ -197,8 +259,6 @@ if (!window.TCDDRailMap) {
 				if (rings.length) { out.push({ type: "Polygon", coordinates: rings }); }
 			}
 		}
-
-		// --- GPX --------------------------------------------------------------
 		function gpxToGeoJson(str) {
 			var doc = xmlDoc(str), feats = [], i;
 			var trks = tags(doc, "trk");
@@ -219,8 +279,6 @@ if (!window.TCDDRailMap) {
 			var geom = lines.length > 1 ? { type: "MultiLineString", coordinates: lines } : { type: "LineString", coordinates: lines[0] };
 			return { type: "Feature", properties: { name: name }, geometry: geom };
 		}
-
-		// --- TopoJSON ---------------------------------------------------------
 		function topojsonToGeoJson(topo) {
 			var feats = [];
 			if (!topo || !topo.objects) { return { type: "FeatureCollection", features: feats }; }
@@ -250,18 +308,12 @@ if (!window.TCDDRailMap) {
 			}
 			for (var key in topo.objects) {
 				if (!topo.objects.hasOwnProperty(key)) { continue; }
-				var obj = topo.objects[key];
-				var gs = (obj.type === "GeometryCollection") ? obj.geometries : [obj];
-				for (var i = 0; i < gs.length; i++) {
-					var gj = geom(gs[i]);
-					if (gj) { feats.push({ type: "Feature", id: gs[i].id, properties: gs[i].properties || {}, geometry: gj }); }
-				}
+				var obj = topo.objects[key], gs = (obj.type === "GeometryCollection") ? obj.geometries : [obj];
+				for (var i = 0; i < gs.length; i++) { var gj = geom(gs[i]); if (gj) { feats.push({ type: "Feature", id: gs[i].id, properties: gs[i].properties || {}, geometry: gj }); } }
 			}
 			return { type: "FeatureCollection", features: feats };
 		}
 		function mapArr(a, fn) { var o = []; for (var i = 0; i < a.length; i++) { o.push(fn(a[i])); } return o; }
-
-		// --- plain JSON (array of segments) -----------------------------------
 		function plainJsonToGeoJson(obj) {
 			var feats = [], arr = (obj instanceof Array) ? obj : (obj && obj.features) ? obj.features : (obj && obj.segments) ? obj.segments : [];
 			for (var i = 0; i < arr.length; i++) {
@@ -296,13 +348,14 @@ if (!window.TCDDRailMap) {
 			this.minZoom = opts.minZoom != null ? opts.minZoom : 2;
 			this.maxZoom = opts.maxZoom != null ? opts.maxZoom : 18;
 			this.bg = opts.background || "#eef2f5";
-			this.tile = null;            // {url, subs:[], opacity}
+			this.hoverEmphasis = opts.hoverEmphasis !== false;
+			this.tile = null;
 			this.tileCache = {};
-			this.layers = [];            // bottom -> top
-			this.listeners = { click: [], hover: [], move: [] };
-			this.selected = null;        // {layerId, featureId}
-			this._raf = null;
-			this._hoverKey = null;
+			this.layers = [];
+			this.listeners = { click: [], hover: [], move: [], dblclick: [], viewchange: [], box: [] };
+			this.selected = null;
+			this._raf = null; this._hoverKey = null; this._hover = null;
+			this._dashOffset = 0; this._animOn = false; this._animId = null;
 			this._build();
 		}
 
@@ -311,13 +364,15 @@ if (!window.TCDDRailMap) {
 			c.style.position = c.style.position || "relative";
 			c.style.overflow = "hidden";
 			var cv = document.createElement("canvas");
-			cv.style.position = "absolute";
-			cv.style.left = "0px"; cv.style.top = "0px";
-			cv.style.cursor = "grab";
-			cv.style.outline = "none";
+			cv.style.position = "absolute"; cv.style.left = "0px"; cv.style.top = "0px";
+			cv.style.cursor = "grab"; cv.style.outline = "none";
+			if (cv.setAttribute) { cv.setAttribute("tabindex", "0"); }
 			c.appendChild(cv);
 			this.canvas = cv;
 			this.ctx = cv.getContext("2d");
+			this.boxDiv = document.createElement("div");
+			this.boxDiv.style.cssText = "position:absolute;border:1px dashed #2b8cbe;background:rgba(43,140,190,.12);display:none;z-index:9;pointer-events:none;";
+			c.appendChild(this.boxDiv);
 			this._bindEvents();
 			this.resize();
 		};
@@ -326,10 +381,8 @@ if (!window.TCDDRailMap) {
 			var w = this.container.clientWidth || 600, h = this.container.clientHeight || 400;
 			var dpr = window.devicePixelRatio || 1;
 			this.cssW = w; this.cssH = h; this.dpr = dpr;
-			this.canvas.width = Math.round(w * dpr);
-			this.canvas.height = Math.round(h * dpr);
-			this.canvas.style.width = w + "px";
-			this.canvas.style.height = h + "px";
+			this.canvas.width = Math.round(w * dpr); this.canvas.height = Math.round(h * dpr);
+			this.canvas.style.width = w + "px"; this.canvas.style.height = h + "px";
 			this.scheduleRender();
 		};
 
@@ -338,8 +391,16 @@ if (!window.TCDDRailMap) {
 			if (lat != null) { this.center.lat = lat; }
 			if (lng != null) { this.center.lng = lng; }
 			if (zoom != null) { this.zoom = this._clampZoom(zoom); }
-			this.scheduleRender();
+			this.scheduleRender(); this._emit("viewchange", this.getView());
 		};
+		MapEngine.prototype.getView = function () { return { lat: this.center.lat, lng: this.center.lng, zoom: this.zoom }; };
+		MapEngine.prototype.getCenter = function () { return { lat: this.center.lat, lng: this.center.lng }; };
+		MapEngine.prototype.getZoom = function () { return this.zoom; };
+		MapEngine.prototype.getBounds = function () {
+			var o = this._origin();
+			return { west: worldXToLng(o.ox, o.scale), east: worldXToLng(o.ox + this.cssW, o.scale), north: worldYToLat(o.oy, o.scale), south: worldYToLat(o.oy + this.cssH, o.scale) };
+		};
+		MapEngine.prototype.metersPerPixel = function () { return metersPerPixel(this.center.lat, this.zoom); };
 		MapEngine.prototype._clampZoom = function (z) { return Math.max(this.minZoom, Math.min(this.maxZoom, Math.round(z))); };
 		MapEngine.prototype.setBackground = function (color) { this.bg = color || "#eef2f5"; this.scheduleRender(); };
 		MapEngine.prototype.setTile = function (url, subs, opacity) {
@@ -350,40 +411,30 @@ if (!window.TCDDRailMap) {
 		};
 
 		// --- layers ----------------------------------------------------------
-		// layer = {id, title, features:[...], visible, styleFn(feature)->{color,weight,opacity}, weight, color, dashed}
 		MapEngine.prototype.addLayer = function (layer) {
 			layer.visible = layer.visible !== false;
 			this.layers.push(layer);
+			this._maybeAnim();
 			this.scheduleRender();
 			return layer;
 		};
-		MapEngine.prototype.clearLayers = function () { this.layers = []; this.selected = null; this.scheduleRender(); };
+		MapEngine.prototype.clearLayers = function () { this.layers = []; this.selected = null; this._maybeAnim(); this.scheduleRender(); };
 		MapEngine.prototype.getLayer = function (id) { for (var i = 0; i < this.layers.length; i++) { if (this.layers[i].id === id) { return this.layers[i]; } } return null; };
-		MapEngine.prototype.setLayerVisible = function (id, vis) { var l = this.getLayer(id); if (l) { l.visible = !!vis; this.scheduleRender(); } };
-
-		MapEngine.prototype.setSelected = function (layerId, featureId) {
-			this.selected = (featureId == null) ? null : { layerId: layerId, featureId: "" + featureId };
-			this.scheduleRender();
-		};
+		MapEngine.prototype.setLayerVisible = function (id, vis) { var l = this.getLayer(id); if (l) { l.visible = !!vis; this._maybeAnim(); this.scheduleRender(); } };
+		MapEngine.prototype.setSelected = function (layerId, featureId) { this.selected = (featureId == null) ? null : { layerId: layerId, featureId: "" + featureId }; this.scheduleRender(); };
 
 		MapEngine.prototype.allBounds = function () {
 			var b = [Infinity, Infinity, -Infinity, -Infinity], i, j, fb;
 			for (i = 0; i < this.layers.length; i++) {
 				var fs = this.layers[i].features || [];
-				for (j = 0; j < fs.length; j++) {
-					fb = fs[j].bbox;
-					if (fb[0] < b[0]) { b[0] = fb[0]; } if (fb[1] < b[1]) { b[1] = fb[1]; }
-					if (fb[2] > b[2]) { b[2] = fb[2]; } if (fb[3] > b[3]) { b[3] = fb[3]; }
-				}
+				for (j = 0; j < fs.length; j++) { fb = fs[j].bbox; if (fb[0] < b[0]) { b[0] = fb[0]; } if (fb[1] < b[1]) { b[1] = fb[1]; } if (fb[2] > b[2]) { b[2] = fb[2]; } if (fb[3] > b[3]) { b[3] = fb[3]; } }
 			}
 			return isFinite(b[0]) ? b : null;
 		};
-
 		MapEngine.prototype.fitBounds = function (b, padding) {
 			if (!b || !isFinite(b[0])) { return; }
 			padding = padding == null ? 24 : padding;
-			var w = Math.max(1, this.cssW - 2 * padding), h = Math.max(1, this.cssH - 2 * padding);
-			var best = this.minZoom;
+			var w = Math.max(1, this.cssW - 2 * padding), h = Math.max(1, this.cssH - 2 * padding), best = this.minZoom;
 			for (var z = this.maxZoom; z >= this.minZoom; z--) {
 				var scale = TILE * Math.pow(2, z);
 				var x0 = lngToWorldX(b[0], scale), x1 = lngToWorldX(b[2], scale);
@@ -391,44 +442,30 @@ if (!window.TCDDRailMap) {
 				if (Math.abs(x1 - x0) <= w && Math.abs(y1 - y0) <= h) { best = z; break; }
 			}
 			this.zoom = this._clampZoom(best);
-			this.center.lng = (b[0] + b[2]) / 2;
-			this.center.lat = (b[1] + b[3]) / 2;
-			this.scheduleRender();
+			this.center.lng = (b[0] + b[2]) / 2; this.center.lat = (b[1] + b[3]) / 2;
+			this.scheduleRender(); this._emit("viewchange", this.getView());
 		};
 
-		// --- projection helpers (current view) -------------------------------
+		// --- projection helpers ---------------------------------------------
 		MapEngine.prototype._origin = function () {
 			var scale = TILE * Math.pow(2, this.zoom);
-			return {
-				scale: scale,
-				ox: lngToWorldX(this.center.lng, scale) - this.cssW / 2,
-				oy: latToWorldY(this.center.lat, scale) - this.cssH / 2
-			};
+			return { scale: scale, ox: lngToWorldX(this.center.lng, scale) - this.cssW / 2, oy: latToWorldY(this.center.lat, scale) - this.cssH / 2 };
 		};
-		MapEngine.prototype.project = function (lng, lat, o) {
-			o = o || this._origin();
-			return { x: lngToWorldX(lng, o.scale) - o.ox, y: latToWorldY(lat, o.scale) - o.oy };
-		};
-		MapEngine.prototype.unproject = function (x, y) {
-			var o = this._origin();
-			return { lng: worldXToLng(x + o.ox, o.scale), lat: worldYToLat(y + o.oy, o.scale) };
-		};
+		MapEngine.prototype.project = function (lng, lat, o) { o = o || this._origin(); return { x: lngToWorldX(lng, o.scale) - o.ox, y: latToWorldY(lat, o.scale) - o.oy }; };
+		MapEngine.prototype.unproject = function (x, y) { var o = this._origin(); return { lng: worldXToLng(x + o.ox, o.scale), lat: worldYToLat(y + o.oy, o.scale) }; };
+		MapEngine.prototype._projLine = function (line, o) { var p = []; for (var i = 0; i < line.length; i++) { p.push(this.project(line[i][0], line[i][1], o)); } return p; };
 
 		// --- render ----------------------------------------------------------
 		MapEngine.prototype.scheduleRender = function () {
-			if (this._raf) { return; }
+			if (this._raf || this._animOn) { return; }
 			var self = this;
-			this._raf = (window.requestAnimationFrame || function (f) { return setTimeout(f, 16); })(function () {
-				self._raf = null; self._draw();
-			});
+			this._raf = (window.requestAnimationFrame || function (f) { return setTimeout(f, 16); })(function () { self._raf = null; self._draw(); });
 		};
-
 		MapEngine.prototype._draw = function () {
 			var ctx = this.ctx;
 			ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 			ctx.clearRect(0, 0, this.cssW, this.cssH);
-			ctx.fillStyle = this.bg;
-			ctx.fillRect(0, 0, this.cssW, this.cssH);
+			ctx.fillStyle = this.bg; ctx.fillRect(0, 0, this.cssW, this.cssH);
 			this._drawTiles(ctx);
 			this._drawLayers(ctx);
 		};
@@ -443,13 +480,9 @@ if (!window.TCDDRailMap) {
 			for (var tx = x0; tx <= x1; tx++) {
 				for (var ty = y0; ty <= y1; ty++) {
 					if (ty < 0 || ty >= n) { continue; }
-					var wx = ((tx % n) + n) % n;
-					var url = this._tileUrl(wx, ty, z);
-					var img = this._tileImage(url);
+					var wx = ((tx % n) + n) % n, img = this._tileImage(this._tileUrl(wx, ty, z));
 					var sx = tx * TILE - o.ox, sy = ty * TILE - o.oy;
-					if (img && img.complete && img.naturalWidth) {
-						ctx.drawImage(img, Math.round(sx), Math.round(sy), TILE, TILE);
-					}
+					if (img && img.complete && img.naturalWidth) { ctx.drawImage(img, Math.round(sx), Math.round(sy), TILE, TILE); }
 				}
 			}
 			ctx.globalAlpha = 1;
@@ -461,78 +494,154 @@ if (!window.TCDDRailMap) {
 		MapEngine.prototype._tileImage = function (url) {
 			var img = this.tileCache[url];
 			if (img) { return img; }
-			img = new Image();
-			img.crossOrigin = "anonymous";
+			img = new Image(); img.crossOrigin = "anonymous";
 			var self = this;
 			img.onload = function () { self.scheduleRender(); };
 			img.onerror = function () { img._failed = true; };
-			img.src = url;
-			this.tileCache[url] = img;
+			img.src = url; this.tileCache[url] = img;
 			return img;
 		};
 
 		MapEngine.prototype._drawLayers = function (ctx) {
 			var o = this._origin();
-			var viewMinLng = worldXToLng(o.ox, o.scale), viewMaxLng = worldXToLng(o.ox + this.cssW, o.scale);
-			var viewMaxLat = worldYToLat(o.oy, o.scale), viewMinLat = worldYToLat(o.oy + this.cssH, o.scale);
+			var vMinLng = worldXToLng(o.ox, o.scale), vMaxLng = worldXToLng(o.ox + this.cssW, o.scale);
+			var vMaxLat = worldYToLat(o.oy, o.scale), vMinLat = worldYToLat(o.oy + this.cssH, o.scale);
 			ctx.lineJoin = "round"; ctx.lineCap = "round";
+			var labelQueue = [];
 			for (var li = 0; li < this.layers.length; li++) {
 				var layer = this.layers[li];
 				if (!layer.visible) { continue; }
-				var fs = layer.features || [];
+				var fs = layer.features || [], layerAlpha = layer.opacity != null ? layer.opacity : 1;
 				for (var fi = 0; fi < fs.length; fi++) {
-					var f = fs[fi];
-					var bb = f.bbox;
-					if (bb[2] < viewMinLng || bb[0] > viewMaxLng || bb[3] < viewMinLat || bb[1] > viewMaxLat) { continue; }
+					var f = fs[fi], bb = f.bbox;
+					if (bb[2] < vMinLng || bb[0] > vMaxLng || bb[3] < vMinLat || bb[1] > vMaxLat) { continue; }
 					var st = layer.styleFn ? layer.styleFn(f) : null;
 					if (st === false) { continue; }
 					st = st || {};
 					var sel = this.selected && this.selected.layerId === layer.id && this.selected.featureId === f.id;
-					var color = sel && layer.highlightColor ? layer.highlightColor : (st.color || layer.color || "#5a6b7b");
-					var weight = (sel ? (st.weight || layer.weight || 3) + 2 : (st.weight || layer.weight || 3));
-					ctx.globalAlpha = st.opacity != null ? st.opacity : 1;
-					ctx.strokeStyle = color;
-					ctx.lineWidth = weight;
-					if (st.dashed || layer.dashed) { if (ctx.setLineDash) { ctx.setLineDash([6, 5]); } } else if (ctx.setLineDash) { ctx.setLineDash([]); }
-					this._strokeFeature(ctx, f, o);
-					// points
+					var hov = this.hoverEmphasis && this._hover && this._hover.layerId === layer.id && this._hover.featureId === f.id;
+					var color = (sel && layer.highlightColor) ? layer.highlightColor : (st.color || layer.color || "#5a6b7b");
+					var weight = (st.weight || layer.weight || 3) + (sel ? 2.5 : 0) + (hov ? 1.5 : 0);
+					var alpha = (st.opacity != null ? st.opacity : 1) * layerAlpha;
+
+					// pre-project the feature's lines once (used for casing, stroke, arrows, label)
+					var proj = [];
+					for (var pl = 0; pl < f.lines.length; pl++) { if (f.lines[pl].length > 1) { proj.push(this._projLine(f.lines[pl], o)); } }
+
+					// casing (halo under the line for readability)
+					if ((layer.casing || st.casing) && proj.length) {
+						ctx.globalAlpha = alpha; ctx.strokeStyle = layer.casingColor || "#ffffff";
+						ctx.lineWidth = weight + (layer.casingWidth || 2) * 2; if (ctx.setLineDash) { ctx.setLineDash([]); }
+						this._strokeProj(ctx, proj);
+					}
+
+					// main stroke
+					ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = weight;
+					var dash = st.dash || layer.dash;
+					if (ctx.setLineDash) { ctx.setLineDash(dash || []); ctx.lineDashOffset = (layer.dashAnimate ? this._dashOffset : 0); }
+					this._strokeProj(ctx, proj);
+					if (ctx.setLineDash) { ctx.lineDashOffset = 0; }
+
+					// direction arrows
+					if ((layer.arrows || st.arrows) && proj.length) {
+						ctx.globalAlpha = alpha; ctx.fillStyle = layer.arrowColor || color;
+						for (var ai = 0; ai < proj.length; ai++) { this._arrows(ctx, proj[ai], layer.arrowSpacing || 90, (weight + 6)); }
+					}
+
+					// points (stations / nodes)
 					if (f.points.length) {
-						ctx.fillStyle = color;
+						ctx.globalAlpha = alpha; ctx.fillStyle = st.color || layer.pointColor || color;
+						var pr = layer.pointRadius || Math.max(3, weight);
 						for (var pi = 0; pi < f.points.length; pi++) {
 							var pp = this.project(f.points[pi][0], f.points[pi][1], o);
-							ctx.beginPath(); ctx.arc(pp.x, pp.y, Math.max(3, weight), 0, 2 * Math.PI); ctx.fill();
+							ctx.beginPath(); ctx.arc(pp.x, pp.y, pr, 0, 2 * Math.PI); ctx.fill();
+							if (layer.pointStroke) { ctx.lineWidth = 1.5; ctx.strokeStyle = "#fff"; if (ctx.setLineDash) { ctx.setLineDash([]); } ctx.stroke(); }
+						}
+					}
+
+					// queue label (drawn last, above everything)
+					if (layer.labels && this.zoom >= (layer.labelMinZoom || 0)) {
+						var lab = layer.labelFn ? layer.labelFn(f) : (f.name != null ? f.name : f.id);
+						if (lab != null && ("" + lab).length) {
+							var anchor = proj.length ? midOfProj(proj) : (f.points.length ? this.project(f.points[0][0], f.points[0][1], o) : null);
+							if (anchor) { labelQueue.push({ x: anchor.x, y: anchor.y, text: "" + lab, color: layer.labelColor || "#26333f" }); }
 						}
 					}
 				}
 			}
-			ctx.globalAlpha = 1;
-			if (ctx.setLineDash) { ctx.setLineDash([]); }
+			ctx.globalAlpha = 1; if (ctx.setLineDash) { ctx.setLineDash([]); }
+			// labels on top with halo
+			if (labelQueue.length) {
+				ctx.font = "11px Arial,Helvetica,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+				ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineJoin = "round";
+				for (var q = 0; q < labelQueue.length; q++) {
+					var L = labelQueue[q];
+					if (ctx.strokeText) { ctx.strokeText(L.text, L.x, L.y); }
+					ctx.fillStyle = L.color; ctx.fillText(L.text, L.x, L.y);
+				}
+			}
 		};
-		MapEngine.prototype._strokeFeature = function (ctx, f, o) {
-			for (var i = 0; i < f.lines.length; i++) {
-				var line = f.lines[i];
-				if (line.length < 2) { continue; }
-				ctx.beginPath();
-				var p = this.project(line[0][0], line[0][1], o);
-				ctx.moveTo(p.x, p.y);
-				for (var j = 1; j < line.length; j++) { p = this.project(line[j][0], line[j][1], o); ctx.lineTo(p.x, p.y); }
+		MapEngine.prototype._strokeProj = function (ctx, proj) {
+			for (var i = 0; i < proj.length; i++) {
+				var pts = proj[i]; if (pts.length < 2) { continue; }
+				ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+				for (var j = 1; j < pts.length; j++) { ctx.lineTo(pts[j].x, pts[j].y); }
 				ctx.stroke();
 			}
+		};
+		MapEngine.prototype._arrows = function (ctx, pts, spacing, size) {
+			var gdist = 0, next = spacing / 2;
+			for (var i = 0; i < pts.length - 1; i++) {
+				var ax = pts[i].x, ay = pts[i].y, bx = pts[i + 1].x, by = pts[i + 1].y;
+				var segLen = hyp(bx - ax, by - ay); if (segLen < 1) { continue; }
+				var ang = Math.atan2(by - ay, bx - ax);
+				while (next <= gdist + segLen) {
+					var t = (next - gdist) / segLen, px = ax + (bx - ax) * t, py = ay + (by - ay) * t;
+					var h = Math.min(8, size);
+					ctx.beginPath(); ctx.moveTo(px, py);
+					ctx.lineTo(px - h * Math.cos(ang - 0.5), py - h * Math.sin(ang - 0.5));
+					ctx.lineTo(px - h * Math.cos(ang + 0.5), py - h * Math.sin(ang + 0.5));
+					ctx.closePath(); ctx.fill();
+					next += spacing;
+				}
+				gdist += segLen;
+			}
+		};
+		function midOfProj(proj) {
+			var best = proj[0], bestLen = -1;
+			for (var i = 0; i < proj.length; i++) {
+				var pts = proj[i], len = 0;
+				for (var j = 1; j < pts.length; j++) { len += hyp(pts[j].x - pts[j - 1].x, pts[j].y - pts[j - 1].y); }
+				if (len > bestLen) { bestLen = len; best = pts; }
+			}
+			return best[Math.floor(best.length / 2)];
+		}
+
+		// --- animation (flow dashes) ----------------------------------------
+		MapEngine.prototype._maybeAnim = function () {
+			var need = false;
+			for (var i = 0; i < this.layers.length; i++) { if (this.layers[i].visible && this.layers[i].dashAnimate) { need = true; break; } }
+			if (need && !this._animOn) { this._animOn = true; this._animStep(); }
+			else if (!need) { this._animOn = false; }
+		};
+		MapEngine.prototype._animStep = function () {
+			if (!this._animOn) { this._animId = null; return; }
+			this._dashOffset -= 0.9;
+			this._draw();
+			var self = this;
+			this._animId = (window.requestAnimationFrame || function (f) { return setTimeout(f, 33); })(function () { self._animStep(); });
 		};
 
 		// --- hit testing -----------------------------------------------------
 		MapEngine.prototype.featureAt = function (px, py, tol) {
 			tol = tol || 7;
 			var o = this._origin(), best = null, bestD = tol;
-			for (var li = this.layers.length - 1; li >= 0; li--) {       // top -> bottom
+			for (var li = this.layers.length - 1; li >= 0; li--) {
 				var layer = this.layers[li];
 				if (!layer.visible) { continue; }
 				var fs = layer.features || [];
-				for (var fi = 0; fi < fs.length; fi++) {
-					var f = fs[fi], d = this._distToFeature(f, px, py, o);
-					if (d < bestD) { bestD = d; best = { layer: layer, feature: f, dist: d }; }
-				}
-				if (best) { return best; }                                // first hit on topmost layer wins
+				for (var fi = 0; fi < fs.length; fi++) { var f = fs[fi], d = this._distToFeature(f, px, py, o); if (d < bestD) { bestD = d; best = { layer: layer, feature: f, dist: d }; } }
+				if (best) { return best; }
 			}
 			return best;
 		};
@@ -540,131 +649,128 @@ if (!window.TCDDRailMap) {
 			var min = Infinity, i, j, a, b, d;
 			for (i = 0; i < f.lines.length; i++) {
 				var line = f.lines[i];
-				for (j = 0; j < line.length - 1; j++) {
-					a = this.project(line[j][0], line[j][1], o);
-					b = this.project(line[j + 1][0], line[j + 1][1], o);
-					d = segDist(px, py, a.x, a.y, b.x, b.y);
-					if (d < min) { min = d; }
-				}
+				for (j = 0; j < line.length - 1; j++) { a = this.project(line[j][0], line[j][1], o); b = this.project(line[j + 1][0], line[j + 1][1], o); d = segDist(px, py, a.x, a.y, b.x, b.y); if (d < min) { min = d; } }
 			}
-			for (i = 0; i < f.points.length; i++) { a = this.project(f.points[i][0], f.points[i][1], o); d = Math.sqrt((px - a.x) * (px - a.x) + (py - a.y) * (py - a.y)); if (d < min) { min = d; } }
+			for (i = 0; i < f.points.length; i++) { a = this.project(f.points[i][0], f.points[i][1], o); d = hyp(px - a.x, py - a.y); if (d < min) { min = d; } }
 			return min;
 		};
 		function segDist(px, py, x1, y1, x2, y2) {
 			var dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy;
-			if (l2 === 0) { return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1)); }
-			var t = ((px - x1) * dx + (py - y1) * dy) / l2;
-			t = t < 0 ? 0 : (t > 1 ? 1 : t);
-			var qx = x1 + t * dx, qy = y1 + t * dy;
-			return Math.sqrt((px - qx) * (px - qx) + (py - qy) * (py - qy));
+			if (l2 === 0) { return hyp(px - x1, py - y1); }
+			var t = ((px - x1) * dx + (py - y1) * dy) / l2; t = t < 0 ? 0 : (t > 1 ? 1 : t);
+			return hyp(px - (x1 + t * dx), py - (y1 + t * dy));
 		}
 
 		// --- events ----------------------------------------------------------
 		MapEngine.prototype.on = function (type, cb) { if (this.listeners[type]) { this.listeners[type].push(cb); } return this; };
 		MapEngine.prototype._emit = function (type, arg) { var ls = this.listeners[type] || []; for (var i = 0; i < ls.length; i++) { try { ls[i](arg); } catch (e) { } } };
+		MapEngine.prototype._setHover = function (hit, p) {
+			var key = hit ? (hit.layer.id + "::" + hit.feature.id) : null;
+			if (key !== this._hoverKey) {
+				this._hoverKey = key;
+				this._hover = hit ? { layerId: hit.layer.id, featureId: hit.feature.id } : null;
+				this.canvas.style.cursor = hit ? "pointer" : "grab";
+				if (this.hoverEmphasis) { this.scheduleRender(); }
+				this._emit("hover", hit ? { layer: hit.layer, feature: hit.feature, x: p.x, y: p.y } : null);
+			} else if (hit) { this._emit("hover", { layer: hit.layer, feature: hit.feature, x: p.x, y: p.y, moveOnly: true }); }
+		};
 
 		MapEngine.prototype._bindEvents = function () {
 			var self = this, cv = this.canvas;
-			var dragging = false, moved = false, lastX = 0, lastY = 0;
-
-			function localXY(e) {
-				var r = cv.getBoundingClientRect();
-				var t = (e.touches && e.touches[0]) || e;
-				return { x: t.clientX - r.left, y: t.clientY - r.top };
-			}
+			var dragging = false, moved = false, boxing = false, lastX = 0, lastY = 0, bsX = 0, bsY = 0;
+			function localXY(e) { var r = cv.getBoundingClientRect(); var t = (e.touches && e.touches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; }
 			function down(e) {
-				var p = localXY(e); dragging = true; moved = false; lastX = p.x; lastY = p.y; cv.style.cursor = "grabbing";
+				var p = localXY(e);
+				if (e.shiftKey) { boxing = true; bsX = p.x; bsY = p.y; self.boxDiv.style.display = ""; self.boxDiv.style.left = p.x + "px"; self.boxDiv.style.top = p.y + "px"; self.boxDiv.style.width = "0px"; self.boxDiv.style.height = "0px"; return; }
+				dragging = true; moved = false; lastX = p.x; lastY = p.y; cv.style.cursor = "grabbing";
 			}
 			function move(e) {
 				var p = localXY(e);
-				if (dragging) {
-					var dx = p.x - lastX, dy = p.y - lastY;
-					if (Math.abs(dx) + Math.abs(dy) > 2) { moved = true; }
-					lastX = p.x; lastY = p.y;
-					self._panByPixels(dx, dy);
-				} else {
-					var hit = self.featureAt(p.x, p.y);
-					var key = hit ? (hit.layer.id + "::" + hit.feature.id) : null;
-					if (key !== self._hoverKey) {
-						self._hoverKey = key;
-						cv.style.cursor = hit ? "pointer" : "grab";
-						self._emit("hover", hit ? { layer: hit.layer, feature: hit.feature, x: p.x, y: p.y } : null);
-					} else if (hit) {
-						self._emit("hover", { layer: hit.layer, feature: hit.feature, x: p.x, y: p.y, moveOnly: true });
-					}
-				}
+				if (boxing) { self.boxDiv.style.left = Math.min(bsX, p.x) + "px"; self.boxDiv.style.top = Math.min(bsY, p.y) + "px"; self.boxDiv.style.width = Math.abs(p.x - bsX) + "px"; self.boxDiv.style.height = Math.abs(p.y - bsY) + "px"; return; }
+				if (dragging) { var dx = p.x - lastX, dy = p.y - lastY; if (Math.abs(dx) + Math.abs(dy) > 2) { moved = true; } lastX = p.x; lastY = p.y; self._panByPixels(dx, dy); }
+				else { self._setHover(self.featureAt(p.x, p.y), p); }
 			}
 			function up(e) {
-				if (dragging && !moved) {
-					var p = localXY(e), hit = self.featureAt(p.x, p.y);
-					self._emit("click", hit ? { layer: hit.layer, feature: hit.feature, x: p.x, y: p.y } : null);
+				if (boxing) {
+					boxing = false; self.boxDiv.style.display = "none";
+					var p = localXY(e), a = self.unproject(Math.min(bsX, p.x), Math.min(bsY, p.y)), b = self.unproject(Math.max(bsX, p.x), Math.max(bsY, p.y));
+					if (Math.abs(p.x - bsX) > 6 && Math.abs(p.y - bsY) > 6) { self.fitBounds([Math.min(a.lng, b.lng), Math.min(a.lat, b.lat), Math.max(a.lng, b.lng), Math.max(a.lat, b.lat)], 0); self._emit("box", null); }
+					return;
 				}
+				if (dragging && !moved) { var q = localXY(e); self._emit("click", wrapHit(self.featureAt(q.x, q.y), q)); }
 				dragging = false; cv.style.cursor = "grab";
 			}
+			function wrapHit(hit, p) { return hit ? { layer: hit.layer, feature: hit.feature, x: p.x, y: p.y } : null; }
 
 			cv.addEventListener("mousedown", down);
 			window.addEventListener("mousemove", move);
 			window.addEventListener("mouseup", up);
 			cv.addEventListener("mousemove", move);
-			cv.addEventListener("mouseleave", function () { if (!dragging && self._hoverKey) { self._hoverKey = null; self._emit("hover", null); } });
-
+			cv.addEventListener("mouseleave", function () { if (!dragging && self._hoverKey) { self._hoverKey = null; self._hover = null; if (self.hoverEmphasis) { self.scheduleRender(); } self._emit("hover", null); } });
 			cv.addEventListener("touchstart", function (e) { down(e); }, { passive: true });
 			cv.addEventListener("touchmove", function (e) { move(e); if (dragging) { e.preventDefault(); } }, { passive: false });
-			cv.addEventListener("touchend", function (e) { dragging = false; });
-
-			cv.addEventListener("wheel", function (e) {
+			cv.addEventListener("touchend", function () { dragging = false; });
+			cv.addEventListener("wheel", function (e) { e.preventDefault(); var p = localXY(e); self._zoomAround(p.x, p.y, e.deltaY < 0 ? 1 : -1); }, { passive: false });
+			cv.addEventListener("dblclick", function (e) { var p = localXY(e); self._emit("dblclick", wrapHit(self.featureAt(p.x, p.y), p)); self._zoomAround(p.x, p.y, 1); });
+			cv.addEventListener("keydown", function (e) {
+				var k = e.keyCode, step = 80;
+				if (k === 37) { self._panByPixels(step, 0); } else if (k === 39) { self._panByPixels(-step, 0); }
+				else if (k === 38) { self._panByPixels(0, step); } else if (k === 40) { self._panByPixels(0, -step); }
+				else if (k === 187 || k === 107) { self.zoomIn(); } else if (k === 189 || k === 109) { self.zoomOut(); }
+				else { return; }
 				e.preventDefault();
-				var p = localXY(e);
-				self._zoomAround(p.x, p.y, e.deltaY < 0 ? 1 : -1);
-			}, { passive: false });
-			cv.addEventListener("dblclick", function (e) { var p = localXY(e); self._zoomAround(p.x, p.y, 1); });
-
-			this._teardown = function () {
-				window.removeEventListener("mousemove", move);
-				window.removeEventListener("mouseup", up);
-			};
+			});
+			this._teardown = function () { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
 		};
 
 		MapEngine.prototype._panByPixels = function (dx, dy) {
 			var o = this._origin();
-			var cx = lngToWorldX(this.center.lng, o.scale) - dx;
-			var cy = latToWorldY(this.center.lat, o.scale) - dy;
-			this.center.lng = worldXToLng(cx, o.scale);
-			this.center.lat = worldYToLat(cy, o.scale);
-			this.scheduleRender();
-			this._emit("move", null);
+			this.center.lng = worldXToLng(lngToWorldX(this.center.lng, o.scale) - dx, o.scale);
+			this.center.lat = worldYToLat(latToWorldY(this.center.lat, o.scale) - dy, o.scale);
+			this.scheduleRender(); this._emit("move", null); this._emit("viewchange", this.getView());
 		};
 		MapEngine.prototype._zoomAround = function (px, py, delta) {
 			var nz = this._clampZoom(this.zoom + delta);
 			if (nz === this.zoom) { return; }
 			var before = this.unproject(px, py);
 			this.zoom = nz;
-			var o = this._origin();
-			// keep the point under the cursor stable
-			var target = this.project(before.lng, before.lat, o);
+			var target = this.project(before.lng, before.lat, this._origin());
 			this._panByPixels(target.x - px, target.y - py);
-			this._emit("move", null);
 		};
 		MapEngine.prototype.zoomIn = function () { this._zoomAround(this.cssW / 2, this.cssH / 2, 1); };
 		MapEngine.prototype.zoomOut = function () { this._zoomAround(this.cssW / 2, this.cssH / 2, -1); };
 
+		// --- PNG snapshot (vectors + background; tiles skipped to avoid taint)
+		MapEngine.prototype.snapshot = function () {
+			try {
+				var c = document.createElement("canvas"); c.width = this.canvas.width; c.height = this.canvas.height;
+				var tctx = c.getContext("2d"), realCtx = this.ctx, realTile = this.tile;
+				this.ctx = tctx; this.tile = null;
+				tctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+				tctx.fillStyle = this.bg; tctx.fillRect(0, 0, this.cssW, this.cssH);
+				this._drawLayers(tctx);
+				this.ctx = realCtx; this.tile = realTile;
+				return c.toDataURL("image/png");
+			} catch (e) { return null; }
+		};
+
 		MapEngine.prototype.destroy = function () {
+			this._animOn = false;
 			if (this._teardown) { this._teardown(); }
 			if (this.canvas && this.canvas.parentNode) { this.canvas.parentNode.removeChild(this.canvas); }
+			if (this.boxDiv && this.boxDiv.parentNode) { this.boxDiv.parentNode.removeChild(this.boxDiv); }
 		};
 
 		return {
 			MapEngine: MapEngine,
-			rampColor: rampColor,
-			rampStops: rampStops,
-			RAMPS: RAMPS,
+			rampColor: rampColor, rampStops: rampStops, RAMPS: RAMPS,
+			categoryColor: categoryColor, CATPAL: CATPAL, BASEMAPS: BASEMAPS,
+			classify: classify, classIndex: classIndex, quantile: quantile, sortedValues: sortedValues,
+			metersPerPixel: metersPerPixel,
 			normalizeGeoJson: normalizeGeoJson,
-			parseNetwork: parseNetwork,
-			detectFormat: detectFormat,
-			kmlToGeoJson: kmlToGeoJson,
-			gpxToGeoJson: gpxToGeoJson,
-			topojsonToGeoJson: topojsonToGeoJson,
-			plainJsonToGeoJson: plainJsonToGeoJson
+			parseNetwork: parseNetwork, detectFormat: detectFormat,
+			kmlToGeoJson: kmlToGeoJson, gpxToGeoJson: gpxToGeoJson,
+			topojsonToGeoJson: topojsonToGeoJson, plainJsonToGeoJson: plainJsonToGeoJson
 		};
 	})();
 }

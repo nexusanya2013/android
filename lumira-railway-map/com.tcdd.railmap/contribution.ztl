@@ -1,154 +1,203 @@
 /*
  * TCDD Railway Map - BIAL scripting interface
- * Exposes property accessors and runtime control methods to Lumira Designer
- * scripts (e.g. RAILWAYMAP_1.setActiveMeasure("Tonaj");).
+ * Property accessors + runtime control methods for Lumira Designer scripts,
+ * e.g.  RAILWAYMAP_1.setActiveMeasure("Tonaj");
+ *       RAILWAYMAP_1.setSymbology("graduated"); RAILWAYMAP_1.setClassification("jenks", 6);
  */
 class com.tcdd.railmap.RailwayMap extends Component {
 
 	/* ---- data ---- */
-	/* Technical name of the dimension carrying the segment id (joins to GeoJSON). */
 	void setSegmentDimension(String value) {* this.segmentDimension = value; *}
 	String getSegmentDimension() {* return this.segmentDimension; *}
+	void setAggregate(/* last|sum|avg|min|max|count */ String value) {* this.aggregate = value; *}
+	String getAggregate() {* return this.aggregate; *}
 
 	/* ---- network ---- */
-	/* URL of the railway network GeoJSON FeatureCollection. */
 	void setNetworkUrl(String value) {* this.networkUrl = value; *}
 	String getNetworkUrl() {* return this.networkUrl; *}
-
-	/* Inline network string (used when no URL is set); any supported format. */
+	void setNetworkFormat(/* auto|geojson|topojson|kml|gpx|json */ String value) {* this.networkFormat = value; *}
+	String getNetworkFormat() {* return this.networkFormat; *}
 	void setNetworkGeoJson(String value) {* this.networkGeoJson = value; *}
 	String getNetworkGeoJson() {* return this.networkGeoJson; *}
-
-	/* Network format: auto | geojson | topojson | kml | gpx | json */
-	void setNetworkFormat(String value) {* this.networkFormat = value; *}
-	String getNetworkFormat() {* return this.networkFormat; *}
-
-	/* GeoJSON feature property that holds the segment id. */
 	void setSegmentIdProperty(String value) {* this.segmentIdProperty = value; *}
 	String getSegmentIdProperty() {* return this.segmentIdProperty; *}
-
-	/* GeoJSON feature property used as the human-readable segment name. */
 	void setSegmentNameProperty(String value) {* this.segmentNameProperty = value; *}
 	String getSegmentNameProperty() {* return this.segmentNameProperty; *}
 
-	/* ---- layers / styling ---- */
+	/* ---- layers ---- */
 	void setBaseLayerTitle(String value) {* this.baseLayerTitle = value; *}
 	String getBaseLayerTitle() {* return this.baseLayerTitle; *}
-
 	void setBaseLayerVisible(boolean value) {* this.baseLayerVisible = value; *}
 	boolean getBaseLayerVisible() {* return this.baseLayerVisible; *}
-
-	/* Comma separated colour ramp names per measure layer (traffic,blue,rdylgn,heat,purple,green,gray). */
 	void setLayerColors(String value) {* this.layerColors = value; *}
 	String getLayerColors() {* return this.layerColors; *}
-
-	/* Comma separated measure titles to show initially (blank = first measure only). */
 	void setVisibleLayers(String value) {* this.visibleLayers = value; *}
 	String getVisibleLayers() {* return this.visibleLayers; *}
-
 	void setShowLayerControl(boolean value) {* this.showLayerControl = value; *}
 	boolean getShowLayerControl() {* return this.showLayerControl; *}
-
 	void setLayerControlCollapsed(boolean value) {* this.layerControlCollapsed = value; *}
 	boolean getLayerControlCollapsed() {* return this.layerControlCollapsed; *}
-
 	void setLayerControlTitle(String value) {* this.layerControlTitle = value; *}
 	String getLayerControlTitle() {* return this.layerControlTitle; *}
+	void setLayerControlMode(/* checkbox|radio|dropdown */ String value) {* this.layerControlMode = value; *}
+	String getLayerControlMode() {* return this.layerControlMode; *}
 
-	void setDefaultColor(String value) {* this.defaultColor = value; *}
-	String getDefaultColor() {* return this.defaultColor; *}
-
-	void setHighlightColor(String value) {* this.highlightColor = value; *}
-	String getHighlightColor() {* return this.highlightColor; *}
-
-	void setLineWeight(int value) {* this.lineWeight = value; *}
-	int getLineWeight() {* return this.lineWeight; *}
-
-	void setBaseLineWeight(int value) {* this.baseLineWeight = value; *}
-	int getBaseLineWeight() {* return this.baseLineWeight; *}
-
-	void setShowLegend(boolean value) {* this.showLegend = value; *}
-	boolean getShowLegend() {* return this.showLegend; *}
-
-	void setLegendTitle(String value) {* this.legendTitle = value; *}
-	String getLegendTitle() {* return this.legendTitle; *}
-
-	void setShowTooltip(boolean value) {* this.showTooltip = value; *}
-	boolean getShowTooltip() {* return this.showTooltip; *}
-
-	/* List every measure value of a segment in its hover tooltip. */
-	void setTooltipShowMeasures(boolean value) {* this.tooltipShowMeasures = value; *}
-	boolean getTooltipShowMeasures() {* return this.tooltipShowMeasures; *}
-
-	/* Extra network feature property names (csv) to show in the tooltip. */
-	void setTooltipProperties(String value) {* this.tooltipProperties = value; *}
-	String getTooltipProperties() {* return this.tooltipProperties; *}
-
-	void setShowZoomControl(boolean value) {* this.showZoomControl = value; *}
-	boolean getShowZoomControl() {* return this.showZoomControl; *}
+	/* ---- symbology ---- */
+	void setSymbologyMode(/* ramp|graduated|categorical|width */ String value) {* this.symbology = value; *}
+	String getSymbologyMode() {* return this.symbology; *}
+	void setClassMethod(/* quantile|equal|jenks */ String value) {* this.classMethod = value; *}
+	String getClassMethod() {* return this.classMethod; *}
+	void setClassCount(int value) {* this.classCount = value; *}
+	int getClassCount() {* return this.classCount; *}
+	void setMinWidth(int value) {* this.minWidth = value; *}
+	int getMinWidth() {* return this.minWidth; *}
+	void setMaxWidth(int value) {* this.maxWidth = value; *}
+	int getMaxWidth() {* return this.maxWidth; *}
+	void setLayerConfig(/* per-measure JSON */ String value) {* this.layerConfig = value; *}
+	String getLayerConfig() {* return this.layerConfig; *}
 
 	/* ---- map view ---- */
 	void setInitialLat(float value) {* this.initialLat = value; *}
 	float getInitialLat() {* return this.initialLat; *}
-
 	void setInitialLng(float value) {* this.initialLng = value; *}
 	float getInitialLng() {* return this.initialLng; *}
-
 	void setInitialZoom(int value) {* this.initialZoom = value; *}
 	int getInitialZoom() {* return this.initialZoom; *}
-
 	void setMinZoom(int value) {* this.minZoom = value; *}
 	int getMinZoom() {* return this.minZoom; *}
-
 	void setMaxZoom(int value) {* this.maxZoom = value; *}
 	int getMaxZoom() {* return this.maxZoom; *}
-
 	void setFitNetworkOnLoad(boolean value) {* this.fitNetworkOnLoad = value; *}
 	boolean getFitNetworkOnLoad() {* return this.fitNetworkOnLoad; *}
 
-	/* ---- base tiles ---- */
+	/* ---- basemap / tiles ---- */
+	void setBasemapName(/* osm|carto-light|carto-dark|carto-voyager|none|custom */ String value) {* this.basemap = value; *}
+	String getBasemapName() {* return this.basemap; *}
 	void setTileUrl(String value) {* this.tileUrl = value; *}
 	String getTileUrl() {* return this.tileUrl; *}
-
 	void setTileSubdomains(String value) {* this.tileSubdomains = value; *}
 	String getTileSubdomains() {* return this.tileSubdomains; *}
-
 	void setTileOpacity(int value) {* this.tileOpacity = value; *}
 	int getTileOpacity() {* return this.tileOpacity; *}
-
 	void setBackgroundColor(String value) {* this.backgroundColor = value; *}
 	String getBackgroundColor() {* return this.backgroundColor; *}
 
-	/* ---- selection (read-only outputs) ---- */
+	/* ---- styling ---- */
+	void setDefaultColor(String value) {* this.defaultColor = value; *}
+	String getDefaultColor() {* return this.defaultColor; *}
+	void setLineWeight(int value) {* this.lineWeight = value; *}
+	int getLineWeight() {* return this.lineWeight; *}
+	void setBaseLineWeight(int value) {* this.baseLineWeight = value; *}
+	int getBaseLineWeight() {* return this.baseLineWeight; *}
+	void setHighlightColor(String value) {* this.highlightColor = value; *}
+	String getHighlightColor() {* return this.highlightColor; *}
+	void setLineCasing(boolean value) {* this.lineCasing = value; *}
+	boolean getLineCasing() {* return this.lineCasing; *}
+	void setLayerOpacityPct(int value) {* this.layerOpacity = value; *}
+	int getLayerOpacityPct() {* return this.layerOpacity; *}
+	void setPointRadius(int value) {* this.pointRadius = value; *}
+	int getPointRadius() {* return this.pointRadius; *}
+
+	/* ---- labels / arrows / flow ---- */
+	void setShowArrows(boolean value) {* this.showArrows = value; *}
+	boolean getShowArrows() {* return this.showArrows; *}
+	void setArrowSpacing(int value) {* this.arrowSpacing = value; *}
+	int getArrowSpacing() {* return this.arrowSpacing; *}
+	void setFlowAnimationProp(boolean value) {* this.flowAnimation = value; *}
+	boolean getFlowAnimationProp() {* return this.flowAnimation; *}
+	void setShowLabels(boolean value) {* this.showLabels = value; *}
+	boolean getShowLabels() {* return this.showLabels; *}
+	void setLabelMode(/* name|id|value */ String value) {* this.labelMode = value; *}
+	String getLabelMode() {* return this.labelMode; *}
+	void setLabelMinZoom(int value) {* this.labelMinZoom = value; *}
+	int getLabelMinZoom() {* return this.labelMinZoom; *}
+
+	/* ---- number format ---- */
+	void setValueDecimals(int value) {* this.valueDecimals = value; *}
+	int getValueDecimals() {* return this.valueDecimals; *}
+	void setValueUnit(String value) {* this.valueUnit = value; *}
+	String getValueUnit() {* return this.valueUnit; *}
+	void setThousandSep(boolean value) {* this.thousandSep = value; *}
+	boolean getThousandSep() {* return this.thousandSep; *}
+
+	/* ---- legend / tooltip ---- */
+	void setShowLegend(boolean value) {* this.showLegend = value; *}
+	boolean getShowLegend() {* return this.showLegend; *}
+	void setLegendTitle(String value) {* this.legendTitle = value; *}
+	String getLegendTitle() {* return this.legendTitle; *}
+	void setShowTooltip(boolean value) {* this.showTooltip = value; *}
+	boolean getShowTooltip() {* return this.showTooltip; *}
+	void setTooltipShowMeasures(boolean value) {* this.tooltipShowMeasures = value; *}
+	boolean getTooltipShowMeasures() {* return this.tooltipShowMeasures; *}
+	void setTooltipProperties(String value) {* this.tooltipProperties = value; *}
+	String getTooltipProperties() {* return this.tooltipProperties; *}
+
+	/* ---- chrome ---- */
+	void setShowToolbar(boolean value) {* this.showToolbar = value; *}
+	boolean getShowToolbar() {* return this.showToolbar; *}
+	void setShowSearch(boolean value) {* this.showSearch = value; *}
+	boolean getShowSearch() {* return this.showSearch; *}
+	void setShowScaleBar(boolean value) {* this.showScaleBar = value; *}
+	boolean getShowScaleBar() {* return this.showScaleBar; *}
+	void setShowCoordinates(boolean value) {* this.showCoordinates = value; *}
+	boolean getShowCoordinates() {* return this.showCoordinates; *}
+	void setShowZoomControl(boolean value) {* this.showZoomControl = value; *}
+	boolean getShowZoomControl() {* return this.showZoomControl; *}
+	void setShowBasemapControl(boolean value) {* this.showBasemapControl = value; *}
+	boolean getShowBasemapControl() {* return this.showBasemapControl; *}
+	void setUiTheme(/* light|dark */ String value) {* this.uiTheme = value; *}
+	String getUiTheme() {* return this.uiTheme; *}
+	void setTitle(String value) {* this.title = value; *}
+	String getTitle() {* return this.title; *}
+	void setSubtitle(String value) {* this.subtitle = value; *}
+	String getSubtitle() {* return this.subtitle; *}
+
+	/* ---- selection / view outputs ---- */
 	String getSelectedSegment() {* return this.selectedSegment; *}
 	String getSelectedSegmentName() {* return this.selectedSegmentName; *}
 	String getSelectedLayer() {* return this.selectedLayer; *}
+	float getCenterLatProp() {* return this.centerLat; *}
+	float getCenterLngProp() {* return this.centerLng; *}
+	int getCurrentZoom() {* return this.currentZoom; *}
 
 	/* ======================= runtime control ======================= */
-
-	/* Show or hide a layer by id or title. */
-	void setLayerVisible(/* layer id or title */ String id, boolean visible) {* this.setLayerVisible(id, visible); *}
+	void setLayerVisible(String id, boolean visible) {* this.setLayerVisible(id, visible); *}
 	void showLayer(String id) {* this.showLayer(id); *}
 	void hideLayer(String id) {* this.hideLayer(id); *}
 	void toggleLayer(String id) {* this.toggleLayer(id); *}
-
-	/* Show exactly one measure layer and hide the rest -> switches the active measure at runtime. */
 	void showOnlyLayer(String id) {* this.showOnlyLayer(id); *}
 	void setActiveMeasure(/* measure title */ String name) {* this.setActiveMeasure(name); *}
+	void setLayerOpacity(String id, int pct) {* this.setLayerOpacity(id, pct); *}
 
-	/* Introspection. */
 	String getMeasures() {* return this.getMeasures(); *}
 	String getLayerIds() {* return this.getLayerIds(); *}
-	String getVisibleLayers() {* return this.getVisibleLayers(); *}
+	String getVisibleLayerTitles() {* return this.getVisibleLayers(); *}
 
-	/* Feed a layer entirely from script. dataJson is either {"segId":value,...}
-	   or [{"segment":"x","value":1},...]. ramp is optional (e.g. "heat"). */
+	/* live symbology / decoration */
+	void setSymbology(/* ramp|graduated|categorical|width */ String mode) {* this.setSymbology(mode); *}
+	void setClassification(/* method */ String method, int count) {* this.setClassification(method, count); *}
+	void setArrows(boolean on) {* this.setArrows(on); *}
+	void setFlowAnimation(boolean on) {* this.setFlowAnimation(on); *}
+	void setLabelsOn(boolean on) {* this.setLabels(on); *}
+	void setCasing(boolean on) {* this.setCasing(on); *}
+
+	/* script-fed layers */
 	void setLayerData(String id, String title, String dataJson, String ramp) {* this.setLayerData(id, title, dataJson, ramp); *}
 	void removeLayer(String id) {* this.removeLayer(id); *}
 
-	/* Navigation. */
+	/* basemap / selection / search / export */
+	void setBasemap(String name) {* this.setBasemap(name); *}
+	void selectSegment(String id) {* this.selectSegment(id); *}
+	void clearSelection() {* this.clearSelection(); *}
+	String search(String query) {* return this.search(query); *}
+	String exportPng() {* return this.exportPng(); *}
+
+	/* navigation */
 	void zoomToSegment(String segId) {* this.zoomToSegment(segId); *}
 	void fitToNetwork() {* this.fitToNetwork(); *}
 	void setView(float lat, float lng, int zoom) {* this.setView(lat, lng, zoom); *}
+	float getCenterLat() {* return this.getCenterLat(); *}
+	float getCenterLng() {* return this.getCenterLng(); *}
+	int getZoom() {* return this.getZoom(); *}
 	void refresh() {* this.refresh(); *}
 }

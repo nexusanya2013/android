@@ -2,22 +2,13 @@
 <!--
   TCDD Railway Map  -  SAP Lumira Designer 2.4 (Design Studio) SDK component
   ===========================================================================
-  Dependency-free, Canvas based slippy map. No Google Maps / Leaflet / API key
-  required, so it opens fast, runs offline and cannot break when a third party
-  deprecates an API.
-
-  Data model (databound="true"):
-    * metadata  -> {dimensions:[{key,text,containsMeasures,members:[{key,text}]}]}
-    * data      -> ResultCellList {tuples:[[memberIdx...]], data:[value]}
-  Every MEASURE in the bound data source becomes one toggleable layer; values
-  are distributed over the railway segments by joining the segment dimension
-  member key with the network feature id. The full railway network is the
-  bottom (base) layer. Layers are switched on/off from the layer control.
-
-  Network can be supplied as GeoJSON, TopoJSON, KML, GPX or plain JSON.
-
-  Every property below carries a `tooltip` so the designer shows an explanation
-  on hover; on the map itself, hovering a segment lists every measure value.
+  Dependency-free, Canvas based railway analytics map. No Google Maps / Leaflet
+  / API key. Every measure in the bound data source becomes a toggleable layer
+  distributed over the railway segments (join: segment dimension key <-> network
+  feature id). Network input: GeoJSON / TopoJSON / KML / GPX / plain JSON.
+  Symbology: colour ramp / graduated classes / categorical / width.
+  Every property carries a Turkish tooltip; on the map, hovering a segment lists
+  every measure value.
 -->
 <sdkExtension xmlns="http://www.sap.com/bi/zen/sdk"
 	id="com.tcdd.railmap"
@@ -26,128 +17,161 @@
 
 	<component id="RailwayMap" title="Railway Map" group="TcddMaps"
 		icon="res/icon.png" handlerType="div" databound="true" modes="commons m"
-		tooltip="Katmanlı demiryolu ağı haritası; veri kaynağından bağlanan ölçüleri hat kesimi bazında renklendirir.">
+		tooltip="Katmanlı demiryolu ağı haritası; ölçüleri hat kesimi bazında renklendirir, sınıflandırır, etiketler.">
 
 		<jsInclude>res/js/railmap-core.js</jsInclude>
 		<jsInclude>res/js/component.js</jsInclude>
 
-		<!-- ============================ DATA ============================ -->
+		<!-- ============================ 1 - VERİ ======================= -->
 		<property id="data" title="Data Source" type="ResultCellList" group="1 - Veri"
-			tooltip="Veri kaynağını buraya bağlayın. Satırlarda hat kesim boyutu, sütunlarda bir veya daha çok ölçü (measure) olsun. Her ölçü ayrı bir katmana dönüşür." />
+			tooltip="Veri kaynağını bağlayın. Satırlarda hat kesim boyutu, sütunlarda bir/çok ölçü olsun. Her ölçü ayrı bir katmana dönüşür." />
 		<property id="segmentDimension" title="Segment Dimension (technical name)" type="String" group="1 - Veri"
-			tooltip="Hat kesim boyutunun TEKNİK adı (ör. ZHATKESIM). Bu boyutun üye anahtarı (key) ağdaki Segment Id ile eşleştirilir. Boş bırakılırsa ilk ölçü-olmayan boyut kullanılır." />
+			tooltip="Hat kesim boyutunun TEKNİK adı. Üye anahtarı (key) ağdaki Segment Id ile eşleşir. Boş = ilk ölçü-olmayan boyut." />
+		<property id="aggregate" title="Aggregation (last/sum/avg/min/max/count)" type="String" group="1 - Veri"
+			tooltip="Aynı hat kesimine birden çok satır düşerse değerlerin nasıl birleştirileceği: last, sum, avg, min, max, count." />
 
-		<!-- ========================= NETWORK ============================ -->
+		<!-- ============================ 2 - AĞ ========================= -->
 		<property id="networkUrl" title="Network Source URL" type="String" group="2 - Ağ"
-			tooltip="Demiryolu ağı dosyasının adresi (GeoJSON/TopoJSON/KML/GPX/JSON). Örn: https://bopwin.tcdd.gov.tr/convertedson.json . URL ile inline birlikte verilirse inline önceliklidir." />
+			tooltip="Ağ dosyasının adresi (GeoJSON/TopoJSON/KML/GPX/JSON). Örn: https://bopwin.tcdd.gov.tr/convertedson.json" />
 		<property id="networkFormat" title="Network Format" type="String" group="2 - Ağ"
-			tooltip="Ağ kaynağının formatı: auto (içeriğe bakıp otomatik algılar), geojson, topojson, kml, gpx, json. Çoğu durumda 'auto' yeterlidir." />
+			tooltip="Ağ formatı: auto (otomatik algıla), geojson, topojson, kml, gpx, json." />
 		<property id="networkGeoJson" title="Network (inline)" type="ScriptText" group="2 - Ağ"
-			tooltip="Ağı doğrudan metin olarak gömün (GeoJSON/TopoJSON/KML/GPX/JSON). URL erişimi/CORS sorunluysa veya küçük/offline ağlar için idealdir." />
+			tooltip="Ağı doğrudan metin olarak gömün (her format). URL/CORS sorunluysa veya offline için idealdir." />
 		<property id="segmentIdProperty" title="Segment Id Property" type="String" group="2 - Ağ"
-			tooltip="Ağdaki bir feature içinde hat kesimini benzersiz tanımlayan alan adı (varsayılan: id). Bu değer, veri kaynağındaki Segment Dimension üye anahtarıyla eşleşmelidir." />
+			tooltip="Feature içinde hat kesimini tanımlayan alan (TCDD verisinde: Hat_kesim). Veri kaynağı üye anahtarıyla eşleşir." />
 		<property id="segmentNameProperty" title="Segment Name Property" type="String" group="2 - Ağ"
-			tooltip="Hat kesiminin okunabilir adını taşıyan feature alanı (varsayılan: name). Tooltip ve seçimde kullanılır." />
+			tooltip="Hat kesiminin okunabilir adını taşıyan alan (TCDD verisinde: Tanim). Tooltip/etiket/seçimde kullanılır." />
 
-		<!-- ========================== LAYERS ============================ -->
+		<!-- ========================= 3 - KATMANLAR ===================== -->
 		<property id="baseLayerTitle" title="Base Layer Title" type="String" group="3 - Katmanlar"
-			tooltip="En alttaki temel ağ katmanının adı (varsayılan: Demiryolu Ağı)." />
+			tooltip="En alttaki tüm ağ (taban) katmanının adı." />
 		<property id="baseLayerVisible" title="Base Layer Visible" type="boolean" group="3 - Katmanlar"
-			tooltip="Temel ağ katmanı başlangıçta görünür mü?" />
+			tooltip="Taban ağ katmanı başlangıçta görünür mü?" />
 		<property id="layerColors" title="Layer Color Ramps (csv)" type="String" group="3 - Katmanlar"
-			tooltip="Her ölçü katmanına sırayla atanacak renk rampaları (virgülle). Geçerli: traffic, rdylgn, blue, green, heat, purple, gray." />
-		<property id="visibleLayers" title="Visible Layers (csv, blank=all first)" type="String" group="3 - Katmanlar"
-			tooltip="Başlangıçta görünür olacak ölçü başlıkları (virgülle). Boş bırakılırsa yalnızca ilk ölçü katmanı açılır." />
+			tooltip="Ölçü katmanlarına sırayla atanacak renk rampaları: traffic, rdylgn, blue, green, heat, purple, viridis, cool, gray." />
+		<property id="visibleLayers" title="Visible Layers (csv, blank=first)" type="String" group="3 - Katmanlar"
+			tooltip="Başlangıçta görünür ölçü başlıkları (virgülle). Boş = yalnızca ilk ölçü." />
 		<property id="showLayerControl" title="Show Layer Control" type="boolean" group="3 - Katmanlar"
-			tooltip="Sağ üstteki katman aç/kapat kontrolünü göster." />
+			tooltip="Sağ üstteki katman kontrolünü göster." />
 		<property id="layerControlCollapsed" title="Collapse Layer Control" type="boolean" group="3 - Katmanlar"
-			tooltip="Katman kontrolünü dropdown (kapalı) olarak göster; kapalıysa başlığa tıklayınca açılır." />
+			tooltip="Katman kontrolünü kapalı (dropdown) başlat." />
 		<property id="layerControlTitle" title="Layer Control Title" type="String" group="3 - Katmanlar"
-			tooltip="Katman kontrolünün başlığı (varsayılan: Katmanlar)." />
+			tooltip="Katman kontrolünün başlığı." />
+		<property id="layerControlMode" title="Layer Control Mode (checkbox/radio/dropdown)" type="String" group="3 - Katmanlar"
+			tooltip="checkbox = çoklu seçim; radio = tek aktif ölçü; dropdown = açılır listeden aktif ölçü." />
 
-		<!-- ========================== MAP VIEW ========================== -->
-		<property id="initialLat" title="Initial Latitude" type="float" group="4 - Harita Görünümü"
-			tooltip="Başlangıç harita merkezinin enlemi (Türkiye için ~39.2)." />
-		<property id="initialLng" title="Initial Longitude" type="float" group="4 - Harita Görünümü"
-			tooltip="Başlangıç harita merkezinin boylamı (Türkiye için ~35.2)." />
-		<property id="initialZoom" title="Initial Zoom" type="int" group="4 - Harita Görünümü"
-			tooltip="Başlangıç yakınlaştırma seviyesi (0-19). Türkiye geneli için ~6." />
-		<property id="minZoom" title="Min Zoom" type="int" group="4 - Harita Görünümü"
-			tooltip="İzin verilen en düşük yakınlaştırma seviyesi." />
-		<property id="maxZoom" title="Max Zoom" type="int" group="4 - Harita Görünümü"
-			tooltip="İzin verilen en yüksek yakınlaştırma seviyesi." />
-		<property id="fitNetworkOnLoad" title="Fit To Network On Load" type="boolean" group="4 - Harita Görünümü"
-			tooltip="Ağ yüklendiğinde görünümü otomatik olarak ağın sınırlarına sığdır." />
+		<!-- ========================= 4 - SEMBOL ======================== -->
+		<property id="symbology" title="Symbology (ramp/graduated/categorical/width)" type="String" group="4 - Sembol"
+			tooltip="ramp = sürekli renk; graduated = sınıflı renk; categorical = ayrık değer renkleri; width = değere göre çizgi kalınlığı." />
+		<property id="classMethod" title="Class Method (quantile/equal/jenks)" type="String" group="4 - Sembol"
+			tooltip="graduated için sınıflandırma yöntemi: quantile, equal (eşit aralık), jenks (doğal kırılımlar)." />
+		<property id="classCount" title="Class Count" type="int" group="4 - Sembol"
+			tooltip="graduated için sınıf sayısı (2-9 önerilir)." />
+		<property id="minWidth" title="Min Width (width symbology)" type="int" group="4 - Sembol"
+			tooltip="width sembolojisinde en düşük değerin çizgi kalınlığı (piksel)." />
+		<property id="maxWidth" title="Max Width (width symbology)" type="int" group="4 - Sembol"
+			tooltip="width sembolojisinde en yüksek değerin çizgi kalınlığı (piksel)." />
+		<property id="layerConfig" title="Per-layer Config (JSON)" type="ScriptText" group="4 - Sembol"
+			tooltip="Ölçü bazında ayar JSON. Örn: {Tonaj:{ramp:heat, symbology:graduated, classMethod:jenks, classCount:6, arrows:true, flow:true, labels:true, opacity:80}}" />
 
-		<!-- ======================== BASE TILES ========================== -->
-		<property id="tileUrl" title="Tile Layer URL" type="String" group="5 - Arka Plan"
-			tooltip="XYZ tile şablonu, ör. https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png . Boş bırakılırsa harita düz zemin rengiyle (offline) çizilir. Tarayıcı çeker." />
-		<property id="tileSubdomains" title="Tile Subdomains" type="String" group="5 - Arka Plan"
-			tooltip="{s} için alt alan adları (virgülle), ör. a,b,c" />
-		<property id="tileOpacity" title="Tile Opacity (0-100)" type="int" group="5 - Arka Plan"
-			tooltip="Arka plan tile katmanının saydamlığı (0=görünmez, 100=tam opak)." />
-		<property id="backgroundColor" title="Background Color" type="String" group="5 - Arka Plan"
-			tooltip="Tile yokken kullanılacak harita zemin rengi (#rrggbb)." />
+		<!-- ====================== 5 - HARİTA GÖRÜNÜMÜ ================== -->
+		<property id="initialLat" title="Initial Latitude" type="float" group="5 - Harita Görünümü" tooltip="Başlangıç merkez enlemi." />
+		<property id="initialLng" title="Initial Longitude" type="float" group="5 - Harita Görünümü" tooltip="Başlangıç merkez boylamı." />
+		<property id="initialZoom" title="Initial Zoom" type="int" group="5 - Harita Görünümü" tooltip="Başlangıç yakınlaştırma (0-19)." />
+		<property id="minZoom" title="Min Zoom" type="int" group="5 - Harita Görünümü" tooltip="En düşük yakınlaştırma." />
+		<property id="maxZoom" title="Max Zoom" type="int" group="5 - Harita Görünümü" tooltip="En yüksek yakınlaştırma." />
+		<property id="fitNetworkOnLoad" title="Fit To Network On Load" type="boolean" group="5 - Harita Görünümü" tooltip="Ağ yüklendiğinde görünümü ağ sınırlarına sığdır." />
 
-		<!-- ========================= STYLING ============================ -->
-		<property id="defaultColor" title="Default Segment Color" type="String" group="6 - Stil"
-			tooltip="Temel ağdaki hat kesimlerinin rengi (#rrggbb)." />
-		<property id="lineWeight" title="Line Weight" type="int" group="6 - Stil"
-			tooltip="Ölçü katmanlarındaki çizgi kalınlığı (piksel)." />
-		<property id="baseLineWeight" title="Base Line Weight" type="int" group="6 - Stil"
-			tooltip="Temel ağ ve değeri olmayan hat kesimlerinin çizgi kalınlığı (piksel)." />
-		<property id="highlightColor" title="Highlight Color" type="String" group="6 - Stil"
-			tooltip="Seçilen hat kesiminin vurgulama rengi (#rrggbb)." />
-		<property id="showLegend" title="Show Legend" type="boolean" group="6 - Stil"
-			tooltip="Sol alttaki renk skalası açıklamasını (legend) göster." />
-		<property id="legendTitle" title="Legend Title" type="String" group="6 - Stil"
-			tooltip="Legend başlığı. Boş bırakılırsa o an görünen ölçünün adı kullanılır." />
+		<!-- ====================== 6 - ALTLIK / ARKA PLAN ============== -->
+		<property id="basemap" title="Basemap (osm/carto-light/carto-dark/carto-voyager/none/custom)" type="String" group="6 - Altlık"
+			tooltip="Hazır altlık seçimi. 'custom' seçilirse Tile Layer URL kullanılır. 'none' = offline düz zemin." />
+		<property id="tileUrl" title="Custom Tile URL" type="String" group="6 - Altlık"
+			tooltip="Özel XYZ tile şablonu (Basemap=custom iken). Örn: https://{s}.../{z}/{x}/{y}.png" />
+		<property id="tileSubdomains" title="Tile Subdomains" type="String" group="6 - Altlık" tooltip="{s} için alt alan adları (a,b,c)." />
+		<property id="tileOpacity" title="Tile Opacity (0-100)" type="int" group="6 - Altlık" tooltip="Altlık saydamlığı." />
+		<property id="backgroundColor" title="Background Color" type="String" group="6 - Altlık" tooltip="Altlık yokken zemin rengi (#rrggbb)." />
 
-		<!-- ========================= TOOLTIP ============================ -->
-		<property id="showTooltip" title="Show Tooltip" type="boolean" group="7 - İpucu (Tooltip)"
-			tooltip="Hat kesiminin üzerine gelince bilgi balonu göster." />
-		<property id="tooltipShowMeasures" title="Tooltip Shows All Measures" type="boolean" group="7 - İpucu (Tooltip)"
-			tooltip="Tooltipte o segmente ait TÜM ölçü değerlerini (renk noktalarıyla) listele." />
-		<property id="tooltipProperties" title="Tooltip Properties (csv)" type="String" group="7 - İpucu (Tooltip)"
-			tooltip="Tooltipte ek olarak gösterilecek ağ feature özellik adları (virgülle). Boş bırakılabilir." />
+		<!-- ============================ 7 - STİL ======================= -->
+		<property id="defaultColor" title="Default Segment Color" type="String" group="7 - Stil" tooltip="Taban ağ çizgi rengi (#rrggbb)." />
+		<property id="lineWeight" title="Line Weight" type="int" group="7 - Stil" tooltip="Ölçü katmanı çizgi kalınlığı (piksel)." />
+		<property id="baseLineWeight" title="Base Line Weight" type="int" group="7 - Stil" tooltip="Taban/değersiz hat kalınlığı (piksel)." />
+		<property id="highlightColor" title="Highlight Color" type="String" group="7 - Stil" tooltip="Seçili hat kesiminin vurgu rengi." />
+		<property id="lineCasing" title="Line Casing (halo)" type="boolean" group="7 - Stil" tooltip="Okunabilirlik için çizgi altına beyaz kılıf çiz." />
+		<property id="layerOpacity" title="Layer Opacity (0-100)" type="int" group="7 - Stil" tooltip="Ölçü katmanlarının genel saydamlığı." />
+		<property id="pointRadius" title="Point Radius" type="int" group="7 - Stil" tooltip="Nokta (istasyon) işaretçi yarıçapı." />
 
-		<!-- ========================= GENERAL ============================ -->
-		<property id="showZoomControl" title="Show Zoom Control" type="boolean" group="8 - Genel"
-			tooltip="Sağ alttaki +/- yakınlaştırma düğmelerini göster." />
+		<!-- ===================== 8 - ETİKET / OK / AKIŞ =============== -->
+		<property id="showArrows" title="Direction Arrows" type="boolean" group="8 - Etiket/Ok/Akış" tooltip="Hatlar üzerinde yön okları göster." />
+		<property id="arrowSpacing" title="Arrow Spacing (px)" type="int" group="8 - Etiket/Ok/Akış" tooltip="Yön okları arası piksel mesafesi." />
+		<property id="flowAnimation" title="Flow Animation" type="boolean" group="8 - Etiket/Ok/Akış" tooltip="Animasyonlu akış (yürüyen kesik çizgi) efekti." />
+		<property id="showLabels" title="Show Labels" type="boolean" group="8 - Etiket/Ok/Akış" tooltip="Hat kesimleri üzerine etiket yaz." />
+		<property id="labelMode" title="Label Mode (name/id/value)" type="String" group="8 - Etiket/Ok/Akış" tooltip="Etiket içeriği: name (Tanim), id (Hat_kesim) veya value (o an görünen ölçü değeri)." />
+		<property id="labelMinZoom" title="Label Min Zoom" type="int" group="8 - Etiket/Ok/Akış" tooltip="Etiketlerin görüneceği en düşük zoom." />
 
-		<!-- ======================== SELECTION =========================== -->
-		<property id="selectedSegment" title="Selected Segment" type="String" group="9 - Seçim"
-			tooltip="Kullanıcının son tıkladığı hat kesiminin id'si. Script'te getSelectedSegment() ile okunur." />
-		<property id="selectedSegmentName" title="Selected Segment Name" type="String" group="9 - Seçim"
-			tooltip="Son seçilen hat kesiminin adı." />
-		<property id="selectedLayer" title="Selected Layer" type="String" group="9 - Seçim"
-			tooltip="Son tıklanan veya aç/kapat yapılan katmanın id'si." />
+		<!-- ========================= 9 - BİÇİM ========================= -->
+		<property id="valueDecimals" title="Value Decimals (-1=auto)" type="int" group="9 - Biçim" tooltip="Sayı ondalık basamağı. -1 = otomatik (B/M/Mr kısaltma)." />
+		<property id="valueUnit" title="Value Unit" type="String" group="9 - Biçim" tooltip="Değerlere eklenecek birim (ör. ton, dk)." />
+		<property id="thousandSep" title="Thousand Separator" type="boolean" group="9 - Biçim" tooltip="Binlik ayırıcı kullan (ondalık sabitken)." />
 
-		<!-- ========================== EVENTS ============================ -->
-		<property id="onSelect" title="on Select" type="ScriptText" group="10 - Olaylar"
-			tooltip="Bir hat kesimine tıklanınca çalışır. selectedSegment / selectedSegmentName / selectedLayer güncellenir." />
-		<property id="onLayerToggle" title="on Layer Toggle" type="ScriptText" group="10 - Olaylar"
-			tooltip="Kullanıcı katman kontrolünden bir katmanı açıp kapatınca çalışır. selectedLayer son değişen katmanı verir." />
+		<!-- ===================== 10 - LEGEND / İPUCU ================== -->
+		<property id="showLegend" title="Show Legend" type="boolean" group="10 - Legend/İpucu" tooltip="Renk skalası açıklamasını göster (sembolojiye göre uyarlanır)." />
+		<property id="legendTitle" title="Legend Title" type="String" group="10 - Legend/İpucu" tooltip="Legend başlığı. Boş = görünen ölçü adı." />
+		<property id="showTooltip" title="Show Tooltip" type="boolean" group="10 - Legend/İpucu" tooltip="Hat kesimine gelince bilgi balonu göster." />
+		<property id="tooltipShowMeasures" title="Tooltip Shows All Measures" type="boolean" group="10 - Legend/İpucu" tooltip="Tooltipte segmentin tüm ölçü değerlerini renk noktalarıyla listele." />
+		<property id="tooltipProperties" title="Tooltip Properties (csv)" type="String" group="10 - Legend/İpucu" tooltip="Tooltipte ek gösterilecek feature özellik adları (virgülle)." />
+
+		<!-- ========================= 11 - ARAYÜZ ====================== -->
+		<property id="showToolbar" title="Show Toolbar" type="boolean" group="11 - Arayüz" tooltip="Sol üst araç çubuğu (sığdır / ara / PNG / tam ekran)." />
+		<property id="showSearch" title="Show Search" type="boolean" group="11 - Arayüz" tooltip="Araç çubuğunda hat kesimi arama düğmesi." />
+		<property id="showScaleBar" title="Show Scale Bar" type="boolean" group="11 - Arayüz" tooltip="Ölçek çubuğunu göster." />
+		<property id="showCoordinates" title="Show Coordinates" type="boolean" group="11 - Arayüz" tooltip="İmleç koordinatlarını alt ortada göster." />
+		<property id="showZoomControl" title="Show Zoom Control" type="boolean" group="11 - Arayüz" tooltip="+/- yakınlaştırma düğmeleri." />
+		<property id="showBasemapControl" title="Show Basemap Control" type="boolean" group="11 - Arayüz" tooltip="Altlık seçim kutusunu göster." />
+		<property id="uiTheme" title="UI Theme (light/dark)" type="String" group="11 - Arayüz" tooltip="Panel teması: light veya dark." />
+		<property id="title" title="Title" type="String" group="11 - Arayüz" tooltip="Üst ortada başlık." />
+		<property id="subtitle" title="Subtitle" type="String" group="11 - Arayüz" tooltip="Başlık altı alt metin." />
+
+		<!-- ===================== 12 - SEÇİM / ÇIKTI ================== -->
+		<property id="selectedSegment" title="Selected Segment" type="String" group="12 - Seçim" tooltip="Son tıklanan hat kesimi id'si (getSelectedSegment)." />
+		<property id="selectedSegmentName" title="Selected Segment Name" type="String" group="12 - Seçim" tooltip="Son seçilen hat kesimi adı." />
+		<property id="selectedLayer" title="Selected Layer" type="String" group="12 - Seçim" tooltip="Son tıklanan/aç-kapat yapılan katman id'si." />
+		<property id="centerLat" title="Center Latitude (output)" type="float" group="12 - Seçim" tooltip="Güncel harita merkez enlemi (onViewChange ile güncellenir)." />
+		<property id="centerLng" title="Center Longitude (output)" type="float" group="12 - Seçim" tooltip="Güncel harita merkez boylamı." />
+		<property id="currentZoom" title="Current Zoom (output)" type="int" group="12 - Seçim" tooltip="Güncel yakınlaştırma seviyesi." />
+
+		<!-- ========================= 13 - OLAYLAR ===================== -->
+		<property id="onSelect" title="on Select" type="ScriptText" group="13 - Olaylar" tooltip="Bir hat kesimine tıklanınca çalışır." />
+		<property id="onLayerToggle" title="on Layer Toggle" type="ScriptText" group="13 - Olaylar" tooltip="Bir katman açılıp kapatılınca çalışır." />
+		<property id="onDoubleClick" title="on Double Click" type="ScriptText" group="13 - Olaylar" tooltip="Haritada çift tıklanınca çalışır." />
+		<property id="onViewChange" title="on View Change" type="ScriptText" group="13 - Olaylar" tooltip="Pan/zoom sonrası (gecikmeli) çalışır; centerLat/Lng/currentZoom güncellenir." />
 
 		<!-- ===================== DEFAULT VALUES ========================= -->
 		<initialization>
-			<defaultValue property="WIDTH">600</defaultValue>
-			<defaultValue property="HEIGHT">400</defaultValue>
-			<defaultValue property="segmentIdProperty">id</defaultValue>
-			<defaultValue property="segmentNameProperty">name</defaultValue>
+			<defaultValue property="WIDTH">640</defaultValue>
+			<defaultValue property="HEIGHT">440</defaultValue>
+			<defaultValue property="segmentIdProperty">Hat_kesim</defaultValue>
+			<defaultValue property="segmentNameProperty">Tanim</defaultValue>
 			<defaultValue property="networkFormat">auto</defaultValue>
+			<defaultValue property="aggregate">last</defaultValue>
 			<defaultValue property="baseLayerTitle">Demiryolu Ağı</defaultValue>
 			<defaultValue property="baseLayerVisible">true</defaultValue>
-			<defaultValue property="layerColors">traffic,blue,rdylgn,heat,purple,green</defaultValue>
+			<defaultValue property="layerColors">traffic,blue,rdylgn,heat,purple,viridis</defaultValue>
 			<defaultValue property="showLayerControl">true</defaultValue>
 			<defaultValue property="layerControlCollapsed">true</defaultValue>
 			<defaultValue property="layerControlTitle">Katmanlar</defaultValue>
+			<defaultValue property="layerControlMode">checkbox</defaultValue>
+			<defaultValue property="symbology">ramp</defaultValue>
+			<defaultValue property="classMethod">quantile</defaultValue>
+			<defaultValue property="classCount">5</defaultValue>
+			<defaultValue property="minWidth">2</defaultValue>
+			<defaultValue property="maxWidth">14</defaultValue>
 			<defaultValue property="initialLat">39.2</defaultValue>
 			<defaultValue property="initialLng">35.2</defaultValue>
 			<defaultValue property="initialZoom">6</defaultValue>
 			<defaultValue property="minZoom">2</defaultValue>
 			<defaultValue property="maxZoom">18</defaultValue>
 			<defaultValue property="fitNetworkOnLoad">true</defaultValue>
+			<defaultValue property="basemap">osm</defaultValue>
 			<defaultValue property="tileUrl">https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png</defaultValue>
 			<defaultValue property="tileSubdomains">a,b,c</defaultValue>
 			<defaultValue property="tileOpacity">100</defaultValue>
@@ -156,12 +180,32 @@
 			<defaultValue property="lineWeight">4</defaultValue>
 			<defaultValue property="baseLineWeight">2</defaultValue>
 			<defaultValue property="highlightColor">#ff7f0e</defaultValue>
+			<defaultValue property="lineCasing">true</defaultValue>
+			<defaultValue property="layerOpacity">100</defaultValue>
+			<defaultValue property="pointRadius">5</defaultValue>
+			<defaultValue property="showArrows">false</defaultValue>
+			<defaultValue property="arrowSpacing">90</defaultValue>
+			<defaultValue property="flowAnimation">false</defaultValue>
+			<defaultValue property="showLabels">false</defaultValue>
+			<defaultValue property="labelMode">name</defaultValue>
+			<defaultValue property="labelMinZoom">8</defaultValue>
+			<defaultValue property="valueDecimals">-1</defaultValue>
+			<defaultValue property="valueUnit"></defaultValue>
+			<defaultValue property="thousandSep">true</defaultValue>
 			<defaultValue property="showLegend">true</defaultValue>
 			<defaultValue property="legendTitle"></defaultValue>
 			<defaultValue property="showTooltip">true</defaultValue>
 			<defaultValue property="tooltipShowMeasures">true</defaultValue>
 			<defaultValue property="tooltipProperties"></defaultValue>
+			<defaultValue property="showToolbar">true</defaultValue>
+			<defaultValue property="showSearch">true</defaultValue>
+			<defaultValue property="showScaleBar">true</defaultValue>
+			<defaultValue property="showCoordinates">false</defaultValue>
 			<defaultValue property="showZoomControl">true</defaultValue>
+			<defaultValue property="showBasemapControl">true</defaultValue>
+			<defaultValue property="uiTheme">light</defaultValue>
+			<defaultValue property="title"></defaultValue>
+			<defaultValue property="subtitle"></defaultValue>
 		</initialization>
 
 	</component>
