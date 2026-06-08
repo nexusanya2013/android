@@ -158,7 +158,8 @@ if (!window.TCDDRailMap) {
 				out.push({
 					id: (id == null ? null : "" + id),
 					name: (nameProp && props[nameProp] != null) ? ("" + props[nameProp]) : null,
-					props: props, lines: lines, points: points, bbox: bboxOf(lines, points)
+					props: props, lines: lines, points: points, bbox: bboxOf(lines, points),
+					anchor: anchorOf(lines, points)                 // representative [lng,lat] for point/marker/bubble/heat
 				});
 			}
 			return out;
@@ -186,6 +187,12 @@ if (!window.TCDDRailMap) {
 			if (!p || p.length < 2) { return; }
 			if (p[0] < b[0]) { b[0] = p[0]; } if (p[1] < b[1]) { b[1] = p[1]; }
 			if (p[0] > b[2]) { b[2] = p[0]; } if (p[1] > b[3]) { b[3] = p[1]; }
+		}
+		// representative point: first point geometry, else middle vertex of the longest line
+		function anchorOf(lines, points) {
+			if (points.length) { return points[0]; }
+			if (lines.length) { var best = lines[0]; for (var i = 1; i < lines.length; i++) { if (lines[i].length > best.length) { best = lines[i]; } } return best[Math.floor(best.length / 2)]; }
+			return null;
 		}
 
 		// ====================================================================
@@ -511,6 +518,8 @@ if (!window.TCDDRailMap) {
 			for (var li = 0; li < this.layers.length; li++) {
 				var layer = this.layers[li];
 				if (!layer.visible) { continue; }
+				var type = layer.type || "line";
+				if (type === "heatmap") { this._drawHeatmap(ctx, layer, o, vMinLng, vMinLat, vMaxLng, vMaxLat); continue; }
 				var fs = layer.features || [], layerAlpha = layer.opacity != null ? layer.opacity : 1;
 				for (var fi = 0; fi < fs.length; fi++) {
 					var f = fs[fi], bb = f.bbox;
@@ -524,62 +533,105 @@ if (!window.TCDDRailMap) {
 					var weight = (st.weight || layer.weight || 3) + (sel ? 2.5 : 0) + (hov ? 1.5 : 0);
 					var alpha = (st.opacity != null ? st.opacity : 1) * layerAlpha;
 
-					// pre-project the feature's lines once (used for casing, stroke, arrows, label)
-					var proj = [];
-					for (var pl = 0; pl < f.lines.length; pl++) { if (f.lines[pl].length > 1) { proj.push(this._projLine(f.lines[pl], o)); } }
-
-					// casing (halo under the line for readability)
-					if ((layer.casing || st.casing) && proj.length) {
-						ctx.globalAlpha = alpha; ctx.strokeStyle = layer.casingColor || "#ffffff";
-						ctx.lineWidth = weight + (layer.casingWidth || 2) * 2; if (ctx.setLineDash) { ctx.setLineDash([]); }
+					if (type === "point" || type === "marker" || type === "bubble") {
+						// symbol at the representative point(s)
+						var anchors = f.points.length ? f.points : (f.anchor ? [f.anchor] : []);
+						for (var sIdx = 0; sIdx < anchors.length; sIdx++) {
+							var sp = this.project(anchors[sIdx][0], anchors[sIdx][1], o);
+							if (type === "marker") { this._pin(ctx, sp.x, sp.y, (layer.pointRadius || 7) + (sel || hov ? 2 : 0), color, alpha); }
+							else if (type === "bubble") { var br = this._bubbleR(layer, f) + (sel || hov ? 2 : 0); ctx.globalAlpha = alpha * 0.75; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sp.x, sp.y, br, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = alpha; ctx.lineWidth = 1.2; ctx.strokeStyle = color; if (ctx.setLineDash) { ctx.setLineDash([]); } ctx.stroke(); }
+							else { var rr = (layer.pointRadius || 6) + (sel || hov ? 2 : 0); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(sp.x, sp.y, rr, 0, 2 * Math.PI); ctx.fill(); if (layer.pointStroke !== false) { ctx.lineWidth = 1.4; ctx.strokeStyle = "#fff"; if (ctx.setLineDash) { ctx.setLineDash([]); } ctx.stroke(); } }
+						}
+					} else {
+						// line / multiline
+						var proj = [];
+						for (var pl = 0; pl < f.lines.length; pl++) { if (f.lines[pl].length > 1) { proj.push(this._projLine(f.lines[pl], o)); } }
+						if ((layer.casing || st.casing) && proj.length) {
+							ctx.globalAlpha = alpha; ctx.strokeStyle = layer.casingColor || "#ffffff";
+							ctx.lineWidth = weight + (layer.casingWidth || 2) * 2; if (ctx.setLineDash) { ctx.setLineDash([]); }
+							this._strokeProj(ctx, proj);
+						}
+						ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = weight;
+						var dash = st.dash || layer.dash;
+						if (ctx.setLineDash) { ctx.setLineDash(dash || []); ctx.lineDashOffset = (layer.dashAnimate ? this._dashOffset : 0); }
 						this._strokeProj(ctx, proj);
-					}
-
-					// main stroke
-					ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = weight;
-					var dash = st.dash || layer.dash;
-					if (ctx.setLineDash) { ctx.setLineDash(dash || []); ctx.lineDashOffset = (layer.dashAnimate ? this._dashOffset : 0); }
-					this._strokeProj(ctx, proj);
-					if (ctx.setLineDash) { ctx.lineDashOffset = 0; }
-
-					// direction arrows
-					if ((layer.arrows || st.arrows) && proj.length) {
-						ctx.globalAlpha = alpha; ctx.fillStyle = layer.arrowColor || color;
-						for (var ai = 0; ai < proj.length; ai++) { this._arrows(ctx, proj[ai], layer.arrowSpacing || 90, (weight + 6)); }
-					}
-
-					// points (stations / nodes)
-					if (f.points.length) {
-						ctx.globalAlpha = alpha; ctx.fillStyle = st.color || layer.pointColor || color;
-						var pr = layer.pointRadius || Math.max(3, weight);
-						for (var pi = 0; pi < f.points.length; pi++) {
-							var pp = this.project(f.points[pi][0], f.points[pi][1], o);
-							ctx.beginPath(); ctx.arc(pp.x, pp.y, pr, 0, 2 * Math.PI); ctx.fill();
-							if (layer.pointStroke) { ctx.lineWidth = 1.5; ctx.strokeStyle = "#fff"; if (ctx.setLineDash) { ctx.setLineDash([]); } ctx.stroke(); }
+						if (ctx.setLineDash) { ctx.lineDashOffset = 0; }
+						if ((layer.arrows || st.arrows) && proj.length) {
+							ctx.globalAlpha = alpha; ctx.fillStyle = layer.arrowColor || color;
+							for (var ai = 0; ai < proj.length; ai++) { this._arrows(ctx, proj[ai], layer.arrowSpacing || 90, (weight + 6)); }
+						}
+						if (f.points.length) {
+							ctx.globalAlpha = alpha; ctx.fillStyle = st.color || layer.pointColor || color;
+							var pr = layer.pointRadius || Math.max(3, weight);
+							for (var pi = 0; pi < f.points.length; pi++) { var pp = this.project(f.points[pi][0], f.points[pi][1], o); ctx.beginPath(); ctx.arc(pp.x, pp.y, pr, 0, 2 * Math.PI); ctx.fill(); }
 						}
 					}
 
-					// queue label (drawn last, above everything)
-					if (layer.labels && this.zoom >= (layer.labelMinZoom || 0)) {
+					// label (anchor based) drawn last
+					if (layer.labels && this.zoom >= (layer.labelMinZoom || 0) && f.anchor) {
 						var lab = layer.labelFn ? layer.labelFn(f) : (f.name != null ? f.name : f.id);
-						if (lab != null && ("" + lab).length) {
-							var anchor = proj.length ? midOfProj(proj) : (f.points.length ? this.project(f.points[0][0], f.points[0][1], o) : null);
-							if (anchor) { labelQueue.push({ x: anchor.x, y: anchor.y, text: "" + lab, color: layer.labelColor || "#26333f" }); }
-						}
+						if (lab != null && ("" + lab).length) { var ap = this.project(f.anchor[0], f.anchor[1], o); labelQueue.push({ x: ap.x, y: ap.y, text: "" + lab, color: layer.labelColor || "#26333f" }); }
 					}
 				}
 			}
 			ctx.globalAlpha = 1; if (ctx.setLineDash) { ctx.setLineDash([]); }
-			// labels on top with halo
 			if (labelQueue.length) {
 				ctx.font = "11px Arial,Helvetica,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
 				ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineJoin = "round";
-				for (var q = 0; q < labelQueue.length; q++) {
-					var L = labelQueue[q];
-					if (ctx.strokeText) { ctx.strokeText(L.text, L.x, L.y); }
-					ctx.fillStyle = L.color; ctx.fillText(L.text, L.x, L.y);
-				}
+				for (var q = 0; q < labelQueue.length; q++) { var L = labelQueue[q]; if (ctx.strokeText) { ctx.strokeText(L.text, L.x, L.y); } ctx.fillStyle = L.color; ctx.fillText(L.text, L.x, L.y); }
 			}
+		};
+		MapEngine.prototype._bubbleR = function (layer, f) {
+			var mn = layer.bubbleMin || 4, mx = layer.bubbleMax || 26;
+			var v = layer.valueAt ? layer.valueAt(f) : null;
+			if (v == null || isNaN(v) || !(layer.max > layer.min)) { return mn; }
+			var t = (v - layer.min) / (layer.max - layer.min); t = t < 0 ? 0 : (t > 1 ? 1 : t);
+			return mn + Math.sqrt(t) * (mx - mn);                       // area-proportional
+		};
+		MapEngine.prototype._pin = function (ctx, x, y, r, color, alpha) {
+			ctx.globalAlpha = alpha; ctx.fillStyle = color;
+			ctx.beginPath(); ctx.arc(x, y - 2 * r, r, 0, 2 * Math.PI); ctx.fill();
+			ctx.beginPath(); ctx.moveTo(x - r * 0.72, y - 2 * r + r * 0.45); ctx.lineTo(x, y); ctx.lineTo(x + r * 0.72, y - 2 * r + r * 0.45); ctx.closePath(); ctx.fill();
+			ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y - 2 * r, r * 0.4, 0, 2 * Math.PI); ctx.fill();
+		};
+		// self-contained density heatmap from feature anchors (weight = layer.valueAt)
+		MapEngine.prototype._heatLUT = function (ramp) {
+			ramp = ramp || "heat";
+			this._lutCache = this._lutCache || {};
+			if (this._lutCache[ramp]) { return this._lutCache[ramp]; }
+			var lut = new Array(256 * 3);
+			for (var i = 0; i < 256; i++) { var c = hexToRgb(rampColor(ramp, i / 255)); lut[i * 3] = c[0]; lut[i * 3 + 1] = c[1]; lut[i * 3 + 2] = c[2]; }
+			this._lutCache[ramp] = lut; return lut;
+		};
+		MapEngine.prototype._drawHeatmap = function (ctx, layer, o, vMinLng, vMinLat, vMaxLng, vMaxLat) {
+			var fs = layer.features || [], pts = [], maxW = 0, radius = layer.heatRadius || 26, i;
+			for (i = 0; i < fs.length; i++) {
+				var f = fs[i], a = f.anchor; if (!a) { continue; }
+				if (a[0] < vMinLng || a[0] > vMaxLng || a[1] < vMinLat || a[1] > vMaxLat) { continue; }
+				var sp = this.project(a[0], a[1], o);
+				var w = layer.valueAt ? layer.valueAt(f) : 1; if (w == null || isNaN(w)) { w = 1; }
+				if (w > maxW) { maxW = w; }
+				pts.push({ x: sp.x, y: sp.y, w: w });
+			}
+			if (!pts.length) { return; }
+			if (maxW <= 0) { maxW = 1; }
+			if (typeof document === "undefined") { return; }
+			var cv = document.createElement("canvas"); cv.width = this.cssW; cv.height = this.cssH;
+			var g = cv.getContext("2d"); if (!g) { return; }
+			g.globalCompositeOperation = "lighter";
+			for (i = 0; i < pts.length; i++) {
+				var p = pts[i], alpha = Math.max(0.05, Math.min(1, p.w / maxW));
+				var grad = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+				grad.addColorStop(0, "rgba(0,0,0," + alpha + ")"); grad.addColorStop(1, "rgba(0,0,0,0)");
+				g.fillStyle = grad; g.beginPath(); g.arc(p.x, p.y, radius, 0, 2 * Math.PI); g.fill();
+			}
+			g.globalCompositeOperation = "source-over";
+			try {
+				var img = g.getImageData(0, 0, this.cssW, this.cssH), d = img.data, lut = this._heatLUT(layer.heatRamp);
+				for (i = 0; i < d.length; i += 4) { var al = d[i + 3]; if (!al) { continue; } var idx = al * 3; d[i] = lut[idx]; d[i + 1] = lut[idx + 1]; d[i + 2] = lut[idx + 2]; }
+				g.putImageData(img, 0, 0);
+				ctx.globalAlpha = layer.opacity != null ? layer.opacity : 0.85; ctx.drawImage(cv, 0, 0, this.cssW, this.cssH); ctx.globalAlpha = 1;
+			} catch (e) { /* getImageData may be unavailable in some sandboxes */ }
 		};
 		MapEngine.prototype._strokeProj = function (ctx, proj) {
 			for (var i = 0; i < proj.length; i++) {
@@ -635,13 +687,21 @@ if (!window.TCDDRailMap) {
 		// --- hit testing -----------------------------------------------------
 		MapEngine.prototype.featureAt = function (px, py, tol) {
 			tol = tol || 7;
-			var o = this._origin(), best = null, bestD = tol;
+			var o = this._origin(), best = null;
 			for (var li = this.layers.length - 1; li >= 0; li--) {
 				var layer = this.layers[li];
-				if (!layer.visible) { continue; }
-				var fs = layer.features || [];
-				for (var fi = 0; fi < fs.length; fi++) { var f = fs[fi], d = this._distToFeature(f, px, py, o); if (d < bestD) { bestD = d; best = { layer: layer, feature: f, dist: d }; } }
-				if (best) { return best; }
+				if (!layer.visible || layer.type === "heatmap") { continue; }
+				var fs = layer.features || [], pointy = (layer.type === "point" || layer.type === "marker" || layer.type === "bubble"), bestD = tol, lb = null;
+				for (var fi = 0; fi < fs.length; fi++) {
+					var f = fs[fi], d;
+					if (pointy) {
+						if (!f.anchor) { continue; }
+						var sp = this.project(f.anchor[0], f.anchor[1], o), rad = (layer.type === "bubble") ? this._bubbleR(layer, f) : (layer.pointRadius || 7);
+						d = hyp(px - sp.x, py - sp.y) - rad;          // inside the symbol -> negative
+					} else { d = this._distToFeature(f, px, py, o); }
+					if (d < bestD) { bestD = d; lb = { layer: layer, feature: f, dist: d }; }
+				}
+				if (lb) { return lb; }
 			}
 			return best;
 		};

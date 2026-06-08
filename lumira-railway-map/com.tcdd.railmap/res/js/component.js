@@ -23,13 +23,15 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	var cfg = {
 		// data + network  (defaults match TCDD "hat_kesim_veri_" GeoJSON)
 		segmentDimension: "", segmentIdProperty: "Hat_kesim", segmentNameProperty: "Tanim",
-		networkUrl: "", networkGeoJson: "", networkFormat: "auto", aggregate: "last",
+		networkUrl: "", networkGeoJson: "", networkFormat: "auto", aggregate: "last", bindConfig: "",
 		// layers
 		baseLayerTitle: "Demiryolu Ağı", baseLayerVisible: true,
 		layerColors: "traffic,blue,rdylgn,heat,purple,viridis", visibleLayers: "",
 		showLayerControl: true, layerControlCollapsed: true, layerControlTitle: "Katmanlar", layerControlMode: "checkbox",
 		// symbology
 		symbology: "ramp", classMethod: "quantile", classCount: 5, minWidth: 2, maxWidth: 14, layerConfig: "",
+		// layer render type
+		layerType: "line", bubbleMinRadius: 4, bubbleMaxRadius: 26, heatRadius: 26, heatRamp: "heat", showLayerTypeSelector: true,
 		// map view
 		initialLat: 39.2, initialLng: 35.2, initialZoom: 6, minZoom: 2, maxZoom: 18, fitNetworkOnLoad: true,
 		// basemap / tiles
@@ -52,9 +54,11 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		centerLat: 39.2, centerLng: 35.2, currentZoom: 6
 	};
 
-	var meta = null, ds = null, engine = null;
+	var meta = null, ds = null, dsB = null, dsC = null, dsD = null, engine = null;
 	var baseFeatures = [], measureOrder = [], scriptLayers = {};
 	var uploadedLayers = [], _uploadSeq = 0;        // file/script added geometry layers
+	var measureTypeOverride = {}, baseType = "line";  // per-layer render type (runtime)
+	var LAYER_TYPES = [["line", "Çizgi"], ["point", "Nokta"], ["marker", "İşaretçi"], ["bubble", "Balon"], ["heatmap", "Isı Haritası"]];
 	var loadedNetworkKey = null, needData = false, needNetwork = false;
 	var ui = {}, vcTimer = null;
 	var UPCOLORS = ["#e15759", "#4e79a7", "#59a14f", "#b07aa1", "#9c755f", "#edc949", "#ff9da7", "#76b7b2"];
@@ -218,34 +222,36 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	// ======================================================================
 	//  3. data parsing  (metadata + tuples + data, with aggregation)
 	// ======================================================================
-	function buildMeasureMaps() {
-		measureOrder = [];
-		var maps = {};
-		if (!meta || !meta.dimensions || !ds || !ds.tuples || !ds.data) { return maps; }
-		var dims = meta.dimensions, measureDim = -1, segDim = -1, i;
+	// parse one data source (metadata + tuples) -> { order:[measureTitles], maps:{title:{segKey:value}} }
+	// segKey is the technical name of the segment dimension for THIS source (may differ per layer).
+	function parseSource(metaArg, dsArg, segKey) {
+		var res = { order: [], maps: {} };
+		if (!metaArg || !metaArg.dimensions || !dsArg || !dsArg.tuples || !dsArg.data) { return res; }
+		var dims = metaArg.dimensions, measureDim = -1, segDim = -1, i;
 		for (i = 0; i < dims.length; i++) {
 			if (dims[i].containsMeasures) { measureDim = i; }
-			if (cfg.segmentDimension && dims[i].key === cfg.segmentDimension) { segDim = i; }
+			if (segKey && dims[i].key === segKey) { segDim = i; }
 		}
 		if (segDim < 0) { for (i = 0; i < dims.length; i++) { if (!dims[i].containsMeasures) { segDim = i; break; } } }
 		if (segDim < 0) { segDim = 0; }
-
-		var acc = {}, method = ("" + cfg.aggregate).toLowerCase();   // acc[m][seg] = {v,c}
-		for (i = 0; i < ds.tuples.length; i++) {
-			var t = ds.tuples[i], segMember = dims[segDim] && dims[segDim].members[t[segDim]];
+		var acc = {}, method = ("" + cfg.aggregate).toLowerCase();
+		for (i = 0; i < dsArg.tuples.length; i++) {
+			var t = dsArg.tuples[i], segMember = dims[segDim] && dims[segDim].members[t[segDim]];
 			if (!segMember) { continue; }
 			var mTitle = "Değer";
 			if (measureDim >= 0) { var mm = dims[measureDim].members[t[measureDim]]; mTitle = (mm && (mm.text != null ? mm.text : mm.key)) || "Değer"; }
-			var v = parseFloat(ds.data[i]); if (isNaN(v)) { continue; }
-			if (!acc[mTitle]) { acc[mTitle] = {}; measureOrder.push(mTitle); }
-			var keys = [];
-			if (segMember.key != null) { keys.push("" + segMember.key); }
-			if (segMember.text != null && ("" + segMember.text) !== ("" + segMember.key)) { keys.push("" + segMember.text); }
-			for (var kk = 0; kk < keys.length; kk++) { aggregate(acc[mTitle], keys[kk], v, method); }
+			var v = parseFloat(dsArg.data[i]); if (isNaN(v)) { continue; }
+			if (!acc[mTitle]) { acc[mTitle] = {}; res.order.push(mTitle); }
+			if (segMember.key != null) { aggregate(acc[mTitle], "" + segMember.key, v, method); }
+			if (segMember.text != null && ("" + segMember.text) !== ("" + segMember.key)) { aggregate(acc[mTitle], "" + segMember.text, v, method); }
 		}
-		for (var m in acc) { if (acc.hasOwnProperty(m)) { maps[m] = finalize(acc[m], method); } }
-		return maps;
+		for (var m in acc) { if (acc.hasOwnProperty(m)) { res.maps[m] = finalize(acc[m], method); } }
+		return res;
 	}
+	// each ResultCellList binding may carry its own metadata; else fall back to the shared one
+	function metaFor(val) { return (val && (val.metadata || (val.dimensions ? val : null))) || meta; }
+	function buildMeasureMaps() { var r = parseSource(meta, ds, cfg.segmentDimension); measureOrder = r.order; return r.maps; }
+	function bindConfigObj() { try { var o = JSON.parse(cfg.bindConfig || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } }
 	function aggregate(store, key, v, method) {
 		var s = store[key];
 		if (!s) { store[key] = { v: v, c: 1, mn: v, mx: v, last: v }; return; }
@@ -276,6 +282,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 			engine.addLayer({
 				id: "__base__", title: cfg.baseLayerTitle, kind: "base", features: baseFeatures, visible: cfg.baseLayerVisible,
 				color: cfg.defaultColor, weight: cfg.baseLineWeight, highlightColor: cfg.highlightColor,
+				type: baseType, pointRadius: cfg.pointRadius, heatRadius: cfg.heatRadius, heatRamp: cfg.heatRamp, bubbleMin: cfg.bubbleMinRadius, bubbleMax: cfg.bubbleMaxRadius,
 				styleFn: function () { return { color: cfg.defaultColor, weight: cfg.baseLineWeight }; }
 			});
 		}
@@ -287,6 +294,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 				id: up.id, title: up.title, kind: "upload", features: up.features, visible: up.visible !== false,
 				color: up.color, weight: up.weight || (cfg.baseLineWeight + 1), highlightColor: cfg.highlightColor,
 				casing: cfg.lineCasing, pointRadius: cfg.pointRadius, pointStroke: true,
+				type: up.type || "line", bubbleMin: cfg.bubbleMinRadius, bubbleMax: cfg.bubbleMaxRadius, heatRadius: cfg.heatRadius, heatRamp: cfg.heatRamp,
 				styleFn: (function (c, w) { return function () { return { color: c, weight: w }; }; })(up.color, up.weight || (cfg.baseLineWeight + 1))
 			});
 		}
@@ -295,7 +303,20 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		if (baseFeatures.length) {
 			var maps = buildMeasureMaps(), rs = ramps(), ov = layerOverrides(), visList = parseVisibleList(), i;
 			for (i = 0; i < measureOrder.length; i++) { addMeasureLayer(measureOrder[i], maps[measureOrder[i]], rs[i % rs.length], decideVisible(measureOrder[i], i, visList), null, ov[measureOrder[i]]); }
-			var si = measureOrder.length;
+
+			// extra independent data-source bindings (Data B/C/D) -> their own layers
+			var bc = bindConfigObj(), slots = [["B", dsB], ["C", dsC], ["D", dsD]], si = measureOrder.length;
+			for (var s = 0; s < slots.length; s++) {
+				var name = slots[s][0], sval = slots[s][1]; if (!sval) { continue; }
+				var c = bc[name] || {}, r = parseSource(metaFor(sval), sval, c.segDim != null ? c.segDim : cfg.segmentDimension);
+				for (var k = 0; k < r.order.length; k++) {
+					var mt = r.order[k];
+					var title = (c.title ? (r.order.length > 1 ? c.title + " · " + mt : c.title) : mt);
+					addMeasureLayer(title, r.maps[mt], c.ramp || rs[si % rs.length], c.visible !== false, "s" + name + "::" + k, { type: c.type, ramp: c.ramp, symbology: c.symbology, classMethod: c.classMethod, classCount: c.classCount });
+					si++;
+				}
+			}
+
 			for (var id in scriptLayers) { if (scriptLayers.hasOwnProperty(id)) { var sl = scriptLayers[id]; addMeasureLayer(sl.title || id, sl.values, sl.ramp || rs[si % rs.length], sl.visible !== false, id, sl.cfg); si++; } }
 		}
 
@@ -313,6 +334,10 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		var layer = {
 			id: forceId || ("m::" + title), title: title, kind: "measure", features: baseFeatures, visible: visible,
 			ramp: lyrRamp, symbology: sym, min: min, max: max, values: values, weight: weight,
+			type: measureTypeOverride[title] || ("" + (over.type || cfg.layerType)).toLowerCase(),
+			valueAt: function (f) { return values[f.id]; },
+			bubbleMin: num(over.bubbleMin, cfg.bubbleMinRadius), bubbleMax: num(over.bubbleMax, cfg.bubbleMaxRadius),
+			heatRadius: num(over.heatRadius, cfg.heatRadius), heatRamp: over.heatRamp || lyrRamp,
 			color: R.rampColor(lyrRamp, 1), highlightColor: cfg.highlightColor,
 			opacity: num(over.opacity, cfg.layerOpacity) / 100,
 			casing: over.casing != null ? !!over.casing : cfg.lineCasing,
@@ -473,16 +498,23 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		sel.onchange = function () { that.showOnlyLayer(sel.value); };
 	}
 	function layerRow(layer, radio) {
-		var row = el("label", "display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;line-height:1.3;");
-		var inp = el("input", "margin:0;", row); inp.type = radio && layer.kind === "measure" ? "radio" : "checkbox";
+		var row = el("div", "display:flex;align-items:center;gap:6px;padding:3px 0;line-height:1.3;");
+		var lab = el("label", "display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;min-width:0;", row);
+		var inp = el("input", "margin:0;flex:none;", lab); inp.type = radio && layer.kind === "measure" ? "radio" : "checkbox";
 		if (inp.type === "radio") { inp.name = "tcddrm_measure"; }
 		inp.checked = !!layer.visible;
-		el("span", "display:inline-block;width:18px;height:6px;border-radius:2px;flex:none;background:" + swatch(layer) + ";", row);
-		txt(el("span", "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;", row), layer.title || layer.id);
+		el("span", "display:inline-block;width:18px;height:6px;border-radius:2px;flex:none;background:" + swatch(layer) + ";", lab);
+		txt(el("span", "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;", lab), layer.title || layer.id);
 		inp.onchange = function () {
 			if (inp.type === "radio") { that.showOnlyLayer(layer.id); }
 			else { engine.setLayerVisible(layer.id, inp.checked); cfg.selectedLayer = layer.id; fireToggle(); buildLegend(); }
 		};
+		if (cfg.showLayerTypeSelector) {
+			var sel = el("select", "flex:none;font-size:10px;border:1px solid " + theme().bd + ";border-radius:3px;background:" + theme().btn + ";color:" + theme().fg + ";", row);
+			for (var i = 0; i < LAYER_TYPES.length; i++) { var op = el("option", null, sel); op.value = LAYER_TYPES[i][0]; txt(op, LAYER_TYPES[i][1]); if ((layer.type || "line") === LAYER_TYPES[i][0]) { op.selected = true; } }
+			sel.title = "Katman tipi";
+			sel.onchange = function () { that.setLayerType(layer.id, sel.value); };
+		}
 		return row;
 	}
 	function swatch(layer) {
@@ -648,6 +680,16 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	this.toggleLayer = function (id) { var l = resolveLayer(id); if (l) { this.setLayerVisible(l.id, !l.visible); } return this; };
 	this.showOnlyLayer = function (id) { var tgt = resolveLayer(id); for (var i = 0; i < engine.layers.length; i++) { var L = engine.layers[i]; if (L.kind === "base") { continue; } engine.setLayerVisible(L.id, tgt && L.id === tgt.id); } if (tgt) { cfg.selectedLayer = tgt.id; } buildSync(); fireToggle(); return this; };
 	this.setActiveMeasure = function (name) { return this.showOnlyLayer(name); };
+	// per-layer render type: line | multiline | point | marker | bubble | heatmap
+	this.setLayerType = function (id, type) {
+		var l = resolveLayer(id); if (!l) { return this; }
+		type = ("" + type).toLowerCase(); if (type === "multiline") { type = "line"; }
+		if (l.kind === "measure") { measureTypeOverride[l.title] = type; }
+		else if (l.kind === "base") { baseType = type; }
+		else { for (var i = 0; i < uploadedLayers.length; i++) { if (uploadedLayers[i].id === l.id) { uploadedLayers[i].type = type; } } }
+		l.type = type; engine.scheduleRender(); buildLayerControl(); buildLegend();
+		return this;
+	};
 	this.getMeasures = function () { return measureOrder.join(","); };
 	this.getLayerIds = function () { var o = []; for (var i = 0; i < engine.layers.length; i++) { o.push(engine.layers[i].id); } return o.join(","); };
 	this.getVisibleLayers = function () { var o = []; for (var i = 0; i < engine.layers.length; i++) { if (engine.layers[i].visible) { o.push(engine.layers[i].title); } } return o.join(","); };
@@ -660,10 +702,10 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	this.setLabels = function (on) { cfg.showLabels = !!on; rebuildLayers(); return this; };
 	this.setCasing = function (on) { cfg.lineCasing = !!on; rebuildLayers(); return this; };
 
-	this.setLayerData = function (id, title, dataJson, ramp) {
+	this.setLayerData = function (id, title, dataJson, ramp, type) {
 		var values = {};
 		try { var parsed = (typeof dataJson === "string") ? JSON.parse(dataJson) : dataJson; if (parsed instanceof Array) { for (var i = 0; i < parsed.length; i++) { var r = parsed[i]; if (r && r.segment != null) { values["" + r.segment] = parseFloat(r.value); } } } else if (parsed) { for (var k in parsed) { if (parsed.hasOwnProperty(k)) { values[k] = parseFloat(parsed[k]); } } } } catch (e) { return this; }
-		scriptLayers[id] = { title: title || id, values: values, ramp: ramp || "", visible: true }; rebuildLayers(); return this;
+		scriptLayers[id] = { title: title || id, values: values, ramp: ramp || "", visible: true, cfg: { type: type, ramp: ramp } }; rebuildLayers(); return this;
 	};
 	this.removeLayer = function (id) { if (scriptLayers[id]) { delete scriptLayers[id]; rebuildLayers(); } return this; };
 
@@ -707,14 +749,15 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	var plain = ["baseLayerTitle", "layerControlTitle", "layerControlMode", "legendTitle", "selectedSegment", "selectedSegmentName", "selectedLayer",
 		"initialLat", "initialLng", "initialZoom", "minZoom", "maxZoom", "tileOpacity", "tileUrl", "tileSubdomains", "basemap",
 		"showLayerControl", "layerControlCollapsed", "showLegend", "showTooltip", "tooltipShowMeasures", "tooltipProperties",
-		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl", "allowUpload", "uploadMode",
+		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl", "allowUpload", "uploadMode", "showLayerTypeSelector",
 		"fitNetworkOnLoad", "backgroundColor", "highlightColor", "uiTheme", "title", "subtitle", "valueUnit",
 		"centerLat", "centerLng", "currentZoom"];
 	for (var pi = 0; pi < plain.length; pi++) { accessor(plain[pi]); }
 
-	var styled = ["segmentDimension", "aggregate", "layerColors", "visibleLayers", "baseLayerVisible",
+	var styled = ["segmentDimension", "aggregate", "bindConfig", "layerColors", "visibleLayers", "baseLayerVisible",
 		"defaultColor", "lineWeight", "baseLineWeight", "lineCasing", "layerOpacity", "pointRadius",
 		"symbology", "classMethod", "classCount", "minWidth", "maxWidth", "layerConfig",
+		"layerType", "bubbleMinRadius", "bubbleMaxRadius", "heatRadius", "heatRamp",
 		"showArrows", "arrowSpacing", "flowAnimation", "showLabels", "labelMode", "labelMinZoom",
 		"valueDecimals", "thousandSep"];
 	for (var si = 0; si < styled.length; si++) { accessor(styled[si], restyle); }
@@ -724,4 +767,8 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 
 	this.metadata = function (value) { if (value === undefined) { return meta; } meta = value; needData = true; return this; };
 	this.data = function (value) { if (value === undefined) { return ds; } ds = value; needData = true; return this; };
+	// extra independent data-source bindings (each can be a different data source / measure)
+	this.dataB = function (value) { if (value === undefined) { return dsB; } dsB = value; needData = true; return this; };
+	this.dataC = function (value) { if (value === undefined) { return dsC; } dsC = value; needData = true; return this; };
+	this.dataD = function (value) { if (value === undefined) { return dsD; } dsD = value; needData = true; return this; };
 });

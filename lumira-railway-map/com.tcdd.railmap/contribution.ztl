@@ -11,6 +11,15 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	String getSegmentDimension() {* return this.segmentDimension; *}
 	void setAggregate(/* last|sum|avg|min|max|count */ String value) {* this.aggregate = value; *}
 	String getAggregate() {* return this.aggregate; *}
+	/* extra independent data-source bindings (same or different data source per layer) */
+	void setDataB(ResultCellList value) {* this.dataB = value; *}
+	ResultCellList getDataB() {* return this.dataB; *}
+	void setDataC(ResultCellList value) {* this.dataC = value; *}
+	ResultCellList getDataC() {* return this.dataC; *}
+	void setDataD(ResultCellList value) {* this.dataD = value; *}
+	ResultCellList getDataD() {* return this.dataD; *}
+	void setBindConfig(/* JSON for B/C/D */ String value) {* this.bindConfig = value; *}
+	String getBindConfig() {* return this.bindConfig; *}
 
 	/* ---- network ---- */
 	void setNetworkUrl(String value) {* this.networkUrl = value; *}
@@ -55,6 +64,18 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	int getMaxWidth() {* return this.maxWidth; *}
 	void setLayerConfig(/* per-measure JSON */ String value) {* this.layerConfig = value; *}
 	String getLayerConfig() {* return this.layerConfig; *}
+	void setLayerTypeDefault(/* line|point|marker|bubble|heatmap */ String value) {* this.layerType = value; *}
+	String getLayerTypeDefault() {* return this.layerType; *}
+	void setBubbleMinRadius(int value) {* this.bubbleMinRadius = value; *}
+	int getBubbleMinRadius() {* return this.bubbleMinRadius; *}
+	void setBubbleMaxRadius(int value) {* this.bubbleMaxRadius = value; *}
+	int getBubbleMaxRadius() {* return this.bubbleMaxRadius; *}
+	void setHeatRadius(int value) {* this.heatRadius = value; *}
+	int getHeatRadius() {* return this.heatRadius; *}
+	void setHeatRamp(String value) {* this.heatRamp = value; *}
+	String getHeatRamp() {* return this.heatRamp; *}
+	void setShowLayerTypeSelector(boolean value) {* this.showLayerTypeSelector = value; *}
+	boolean getShowLayerTypeSelector() {* return this.showLayerTypeSelector; *}
 
 	/* ---- map view ---- */
 	void setInitialLat(float value) {* this.initialLat = value; *}
@@ -171,6 +192,7 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	void toggleLayer(String id) {* this.toggleLayer(id); *}
 	void showOnlyLayer(String id) {* this.showOnlyLayer(id); *}
 	void setActiveMeasure(/* measure title */ String name) {* this.setActiveMeasure(name); *}
+	void setLayerType(/* line|point|marker|bubble|heatmap */ String id, String type) {* this.setLayerType(id, type); *}
 	void setLayerOpacity(String id, int pct) {* this.setLayerOpacity(id, pct); *}
 
 	String getMeasures() {* return this.getMeasures(); *}
@@ -186,7 +208,7 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	void setCasing(boolean on) {* this.setCasing(on); *}
 
 	/* script-fed layers */
-	void setLayerData(String id, String title, String dataJson, String ramp) {* this.setLayerData(id, title, dataJson, ramp); *}
+	void setLayerData(String id, String title, String dataJson, String ramp, String type) {* this.setLayerData(id, title, dataJson, ramp, type); *}
 	void removeLayer(String id) {* this.removeLayer(id); *}
 
 	/* geometry layers from a raw string (any format) -> separate toggleable layer */

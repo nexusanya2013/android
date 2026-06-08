@@ -29,6 +29,14 @@
 			tooltip="Hat kesim boyutunun TEKNİK adı. Üye anahtarı (key) ağdaki Segment Id ile eşleşir. Boş = ilk ölçü-olmayan boyut." />
 		<property id="aggregate" title="Aggregation (last/sum/avg/min/max/count)" type="String" group="1 - Veri"
 			tooltip="Aynı hat kesimine birden çok satır düşerse değerlerin nasıl birleştirileceği: last, sum, avg, min, max, count." />
+		<property id="dataB" title="Data Source B" type="ResultCellList" group="1 - Veri"
+			tooltip="Ek/bağımsız veri kaynağı B. Ana kaynaktan FARKLI bir data source da bağlayabilirsiniz; ölçüleri ayrı katman(lar) olur." />
+		<property id="dataC" title="Data Source C" type="ResultCellList" group="1 - Veri"
+			tooltip="Ek/bağımsız veri kaynağı C." />
+		<property id="dataD" title="Data Source D" type="ResultCellList" group="1 - Veri"
+			tooltip="Ek/bağımsız veri kaynağı D." />
+		<property id="bindConfig" title="Binding Config (JSON: B/C/D)" type="ScriptText" group="1 - Veri"
+			tooltip="Data B/C/D slotları için ayar. Örn: {B:{title:Bütçe, segDim:ZHATKESIM, ramp:blue, type:bubble}, C:{title:Geçen Yıl, ramp:gray}}" />
 
 		<!-- ============================ 2 - AĞ ========================= -->
 		<property id="networkUrl" title="Network Source URL" type="String" group="2 - Ağ"
@@ -72,7 +80,14 @@
 		<property id="maxWidth" title="Max Width (width symbology)" type="int" group="4 - Sembol"
 			tooltip="width sembolojisinde en yüksek değerin çizgi kalınlığı (piksel)." />
 		<property id="layerConfig" title="Per-layer Config (JSON)" type="ScriptText" group="4 - Sembol"
-			tooltip="Ölçü bazında ayar JSON. Örn: {Tonaj:{ramp:heat, symbology:graduated, classMethod:jenks, classCount:6, arrows:true, flow:true, labels:true, opacity:80}}" />
+			tooltip="Ölçü bazında ayar JSON. Örn: {Tonaj:{ramp:heat, type:bubble, symbology:graduated, classMethod:jenks, classCount:6, arrows:true, flow:true, labels:true, opacity:80}}" />
+		<property id="layerType" title="Layer Type (line/point/marker/bubble/heatmap)" type="String" group="4 - Sembol"
+			tooltip="Ölçü katmanlarının varsayılan render tipi. Her katman için ayrıca katman kontrolünden veya setLayerType ile değiştirilebilir." />
+		<property id="bubbleMinRadius" title="Bubble Min Radius" type="int" group="4 - Sembol" tooltip="Balon (bubble) tipinde en küçük dairenin yarıçapı (px)." />
+		<property id="bubbleMaxRadius" title="Bubble Max Radius" type="int" group="4 - Sembol" tooltip="Balon (bubble) tipinde en büyük dairenin yarıçapı (px)." />
+		<property id="heatRadius" title="Heatmap Radius" type="int" group="4 - Sembol" tooltip="Isı haritası (heatmap) nokta yarıçapı (px)." />
+		<property id="heatRamp" title="Heatmap Ramp" type="String" group="4 - Sembol" tooltip="Isı haritası renk rampası (heat, viridis, blue …)." />
+		<property id="showLayerTypeSelector" title="Show Layer Type Selector" type="boolean" group="4 - Sembol" tooltip="Katman kontrolünde her katman için tip seçim kutusu göster." />
 
 		<!-- ====================== 5 - HARİTA GÖRÜNÜMÜ ================== -->
 		<property id="initialLat" title="Initial Latitude" type="float" group="5 - Harita Görünümü" tooltip="Başlangıç merkez enlemi." />
@@ -167,6 +182,12 @@
 			<defaultValue property="classCount">5</defaultValue>
 			<defaultValue property="minWidth">2</defaultValue>
 			<defaultValue property="maxWidth">14</defaultValue>
+			<defaultValue property="layerType">line</defaultValue>
+			<defaultValue property="bubbleMinRadius">4</defaultValue>
+			<defaultValue property="bubbleMaxRadius">26</defaultValue>
+			<defaultValue property="heatRadius">26</defaultValue>
+			<defaultValue property="heatRamp">heat</defaultValue>
+			<defaultValue property="showLayerTypeSelector">true</defaultValue>
 			<defaultValue property="initialLat">39.2</defaultValue>
 			<defaultValue property="initialLng">35.2</defaultValue>
 			<defaultValue property="initialZoom">6</defaultValue>
