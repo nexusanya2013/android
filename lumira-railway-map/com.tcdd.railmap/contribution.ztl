@@ -145,6 +145,8 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	boolean getShowZoomControl() {* return this.showZoomControl; *}
 	void setShowBasemapControl(boolean value) {* this.showBasemapControl = value; *}
 	boolean getShowBasemapControl() {* return this.showBasemapControl; *}
+	void setAllowUpload(boolean value) {* this.allowUpload = value; *}
+	boolean getAllowUpload() {* return this.allowUpload; *}
 	void setUiTheme(/* light|dark */ String value) {* this.uiTheme = value; *}
 	String getUiTheme() {* return this.uiTheme; *}
 	void setTitle(String value) {* this.title = value; *}

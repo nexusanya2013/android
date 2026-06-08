@@ -46,6 +46,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		// chrome
 		showToolbar: true, showSearch: true, showScaleBar: true, showCoordinates: false,
 		showZoomControl: true, showBasemapControl: true, uiTheme: "light", title: "", subtitle: "",
+		allowUpload: true,
 		// outputs
 		selectedSegment: "", selectedSegmentName: "", selectedLayer: "",
 		centerLat: 39.2, centerLng: 35.2, currentZoom: 6
@@ -109,6 +110,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		buildChrome(host);
 		buildZoomButtons();
 		bindCoordReadout();
+		bindUpload(host);
 
 		if (window.ResizeObserver) { ui.ro = new ResizeObserver(function () { if (engine) { engine.resize(); } }); ui.ro.observe(host); }
 		else if (window.addEventListener) { window.addEventListener("resize", function () { if (engine) { engine.resize(); } }); }
@@ -157,15 +159,35 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 			xhr.send();
 		} catch (e) { status("Ağ isteği başarısız: " + e.message); }
 	}
-	function parseAndSet(raw) {
-		var gj;
-		try { gj = R.parseNetwork(raw, cfg.networkFormat); }
-		catch (e) { status("Ağ ayrıştırılamadı (" + cfg.networkFormat + "): " + e.message); return; }
+	function parseAndSet(raw, fmt) {
+		var gj, f = fmt || cfg.networkFormat;
+		try { gj = R.parseNetwork(raw, f); }
+		catch (e) { status("Ağ ayrıştırılamadı (" + f + "): " + e.message); return; }
 		baseFeatures = R.normalizeGeoJson(gj, cfg.segmentIdProperty, cfg.segmentNameProperty);
 		if (!baseFeatures.length) { status("Ağ boş ya da çizgi/nokta içermiyor"); return; }
 		hideStatus();
 		rebuildLayers();
 		if (cfg.fitNetworkOnLoad) { engine.fitBounds(engine.allBounds()); }
+	}
+
+	// --- file upload / drag & drop (fully client-side, session only) ------
+	function formatFromName(n) { n = ("" + n).toLowerCase(); if (/\.kml$/.test(n)) { return "kml"; } if (/\.gpx$/.test(n)) { return "gpx"; } if (/\.topojson$/.test(n)) { return "topojson"; } if (/\.geojson$/.test(n)) { return "geojson"; } return "auto"; }
+	function handleFile(file) {
+		if (!file) { return; }
+		if (typeof FileReader === "undefined") { status("Bu tarayıcı dosya okumayı desteklemiyor"); return; }
+		status("Dosya okunuyor: " + file.name + " …");
+		try {
+			var fr = new FileReader();
+			fr.onload = function () { loadedNetworkKey = "upload:" + file.name + ":" + ("" + fr.result).length; parseAndSet("" + fr.result, formatFromName(file.name)); };
+			fr.onerror = function () { status("Dosya okunamadı: " + file.name); };
+			fr.readAsText(file);
+		} catch (e) { status("Yükleme başarısız: " + e.message); }
+	}
+	function bindUpload(host) {
+		if (!host.addEventListener) { return; }
+		host.addEventListener("dragover", function (e) { if (!cfg.allowUpload) { return; } e.preventDefault(); if (ui.drop) { ui.drop.style.display = ""; } });
+		host.addEventListener("dragleave", function () { if (ui.drop) { ui.drop.style.display = "none"; } });
+		host.addEventListener("drop", function (e) { if (!cfg.allowUpload) { return; } e.preventDefault(); if (ui.drop) { ui.drop.style.display = "none"; } var dt = e.dataTransfer; if (dt && dt.files && dt.files.length) { handleFile(dt.files[0]); } });
 	}
 
 	// ======================================================================
@@ -311,6 +333,13 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		ui.tip = el("div", "position:absolute;z-index:8;pointer-events:none;display:none;background:rgba(20,28,36,.94);color:#fff;padding:6px 8px;border-radius:5px;font-size:11px;line-height:1.5;max-width:300px;box-shadow:0 2px 8px rgba(0,0,0,.3);", host);
 		ui.zoom = el("div", "position:absolute;right:8px;bottom:8px;z-index:6;display:flex;flex-direction:column;", host);
 		ui.status = el("div", panel("left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;padding:8px 14px;display:none;"), host);
+		ui.drop = el("div", "position:absolute;inset:0;left:0;top:0;right:0;bottom:0;z-index:10;display:none;align-items:center;justify-content:center;" +
+			"background:rgba(43,140,190,.12);border:3px dashed #2b8cbe;color:#1c4a63;font-weight:bold;font-size:14px;pointer-events:none;", host);
+		txt(ui.drop, "Ağ dosyasını bırakın (GeoJSON / TopoJSON / KML / GPX / JSON)");
+		ui.fileInput = el("input", "display:none;", host);
+		ui.fileInput.type = "file";
+		ui.fileInput.accept = ".geojson,.json,.topojson,.kml,.gpx,.txt,application/json,application/vnd.google-earth.kml+xml";
+		ui.fileInput.onchange = function () { if (ui.fileInput.files && ui.fileInput.files.length) { handleFile(ui.fileInput.files[0]); } ui.fileInput.value = ""; };
 	}
 
 	function layoutOverlays() {
@@ -338,6 +367,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	function buildToolbar() {
 		clear(ui.toolbar);
 		tbBtn(ui.toolbar, "&#8962;", "Tüm ağa sığdır").onclick = function () { engine.fitBounds(engine.allBounds()); };
+		if (cfg.allowUpload) { tbBtn(ui.toolbar, "&#11014;", "Ağ dosyası yükle (GeoJSON/TopoJSON/KML/GPX/JSON)").onclick = function () { if (ui.fileInput) { ui.fileInput.click(); } }; }
 		if (cfg.showSearch) { tbBtn(ui.toolbar, "&#128269;", "Ara").onclick = function () { ui.search.style.display = ui.search.style.display === "none" ? "" : "none"; if (ui.search.style.display === "") { buildSearch(); var inp = ui.search.firstChild; if (inp && inp.focus) { inp.focus(); } } }; }
 		tbBtn(ui.toolbar, "&#9974;", "PNG indir").onclick = exportPng;
 		tbBtn(ui.toolbar, "&#11036;", "Tam ekran").onclick = toggleFullscreen;
@@ -613,7 +643,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	var plain = ["baseLayerTitle", "layerControlTitle", "layerControlMode", "legendTitle", "selectedSegment", "selectedSegmentName", "selectedLayer",
 		"initialLat", "initialLng", "initialZoom", "minZoom", "maxZoom", "tileOpacity", "tileUrl", "tileSubdomains", "basemap",
 		"showLayerControl", "layerControlCollapsed", "showLegend", "showTooltip", "tooltipShowMeasures", "tooltipProperties",
-		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl",
+		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl", "allowUpload",
 		"fitNetworkOnLoad", "backgroundColor", "highlightColor", "uiTheme", "title", "subtitle", "valueUnit",
 		"centerLat", "centerLng", "currentZoom"];
 	for (var pi = 0; pi < plain.length; pi++) { accessor(plain[pi]); }
