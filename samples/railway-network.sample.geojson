@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "name": "TCDD ornek hat kesimleri",
+  "features": [
+    { "type": "Feature", "properties": { "id": "ANK-IST", "name": "Ankara - Istanbul" },
+      "geometry": { "type": "LineString", "coordinates": [[32.85,39.93],[31.16,40.30],[30.40,40.77],[29.92,40.76],[29.09,41.01]] } },
+    { "type": "Feature", "properties": { "id": "ANK-IZM", "name": "Ankara - Izmir" },
+      "geometry": { "type": "LineString", "coordinates": [[32.85,39.93],[31.42,39.42],[30.10,39.40],[28.67,38.66],[27.14,38.42]] } },
+    { "type": "Feature", "properties": { "id": "ANK-SVS", "name": "Ankara - Sivas" },
+      "geometry": { "type": "LineString", "coordinates": [[32.85,39.93],[34.05,39.83],[35.50,39.75],[37.01,39.75]] } },
+    { "type": "Feature", "properties": { "id": "SVS-ERZ", "name": "Sivas - Erzurum" },
+      "geometry": { "type": "LineString", "coordinates": [[37.01,39.75],[38.50,39.80],[39.49,39.90],[41.27,39.90]] } },
+    { "type": "Feature", "properties": { "id": "ANK-ADN", "name": "Ankara - Adana" },
+      "geometry": { "type": "LineString", "coordinates": [[32.85,39.93],[33.50,38.80],[34.03,37.97],[35.32,37.00]] } },
+    { "type": "Feature", "properties": { "id": "ADN-MRS", "name": "Adana - Mersin" },
+      "geometry": { "type": "LineString", "coordinates": [[35.32,37.00],[34.64,36.81],[34.55,36.78]] } },
+    { "type": "Feature", "properties": { "id": "IST-EDR", "name": "Istanbul - Edirne" },
+      "geometry": { "type": "LineString", "coordinates": [[29.09,41.01],[28.20,41.30],[27.20,41.40],[26.56,41.68]] } },
+    { "type": "Feature", "properties": { "id": "ANK-KON", "name": "Ankara - Konya (YHT)" },
+      "geometry": { "type": "LineString", "coordinates": [[32.85,39.93],[32.70,38.90],[32.48,37.87]] } }
+  ]
+}

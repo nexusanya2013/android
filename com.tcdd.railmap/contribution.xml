@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TCDD Railway Map  -  SAP Lumira Designer 2.4 (Design Studio) SDK component
+  ===========================================================================
+  Dependency-free, Canvas based slippy map. No Google Maps / Leaflet / API key
+  required, so it opens fast, runs offline and cannot break when a third party
+  deprecates an API.
+
+  Data model (databound="true"):
+    * metadata     -> {dimensions:[{key,text,containsMeasures,members:[{key,text}]}]}
+    * data         -> ResultCellList {tuples:[[memberIdx...]], data:[value]}
+  Every MEASURE in the bound data source becomes one toggleable layer; values
+  are distributed over the railway segments by joining the segment dimension
+  member key with the GeoJSON feature id. The full railway network is the
+  bottom (base) layer. Layers are switched on/off from the layer control
+  (dropdown / checkbox list).
+-->
+<sdkExtension xmlns="http://www.sap.com/bi/zen/sdk"
+	id="com.tcdd.railmap"
+	title="TCDD Railway Map" version="1.0"
+	vendor="TCDD">
+
+	<component id="RailwayMap" title="Railway Map" group="TcddMaps"
+		icon="res/icon.png" handlerType="div" databound="true" modes="commons m">
+
+		<jsInclude>res/js/railmap-core.js</jsInclude>
+		<jsInclude>res/js/component.js</jsInclude>
+
+		<!-- ============================ DATA ============================ -->
+		<property id="data" title="Data Source" type="ResultCellList" />
+		<property id="segmentDimension" title="Segment Dimension (technical name)" type="String" />
+
+		<!-- ========================= NETWORK ============================ -->
+		<property id="networkUrl" title="Network GeoJSON URL" type="String" />
+		<property id="networkGeoJson" title="Network GeoJSON (inline)" type="ScriptText" />
+		<property id="segmentIdProperty" title="Segment Id Property" type="String" />
+		<property id="segmentNameProperty" title="Segment Name Property" type="String" />
+
+		<!-- ========================== LAYERS ============================ -->
+		<property id="baseLayerTitle" title="Base Layer Title" type="String" />
+		<property id="baseLayerVisible" title="Base Layer Visible" type="boolean" />
+		<property id="layerColors" title="Layer Color Ramps (csv)" type="String" />
+		<property id="visibleLayers" title="Visible Layers (csv, blank=all)" type="String" />
+		<property id="showLayerControl" title="Show Layer Control" type="boolean" />
+		<property id="layerControlCollapsed" title="Collapse Layer Control" type="boolean" />
+		<property id="layerControlTitle" title="Layer Control Title" type="String" />
+
+		<!-- ========================== MAP VIEW ========================== -->
+		<property id="initialLat" title="Initial Latitude" type="float" />
+		<property id="initialLng" title="Initial Longitude" type="float" />
+		<property id="initialZoom" title="Initial Zoom" type="int" />
+		<property id="minZoom" title="Min Zoom" type="int" />
+		<property id="maxZoom" title="Max Zoom" type="int" />
+		<property id="fitNetworkOnLoad" title="Fit To Network On Load" type="boolean" />
+
+		<!-- ======================== BASE TILES ========================== -->
+		<property id="tileUrl" title="Tile Layer URL" type="String" />
+		<property id="tileSubdomains" title="Tile Subdomains" type="String" />
+		<property id="tileOpacity" title="Tile Opacity (0-100)" type="int" />
+		<property id="backgroundColor" title="Background Color" type="String" />
+
+		<!-- ========================= STYLING ============================ -->
+		<property id="defaultColor" title="Default Segment Color" type="String" />
+		<property id="lineWeight" title="Line Weight" type="int" />
+		<property id="baseLineWeight" title="Base Line Weight" type="int" />
+		<property id="highlightColor" title="Highlight Color" type="String" />
+		<property id="showLegend" title="Show Legend" type="boolean" />
+		<property id="legendTitle" title="Legend Title" type="String" />
+		<property id="showTooltip" title="Show Tooltip" type="boolean" />
+		<property id="showZoomControl" title="Show Zoom Control" type="boolean" />
+
+		<!-- ======================== SELECTION =========================== -->
+		<property id="selectedSegment" title="Selected Segment" type="String" />
+		<property id="selectedSegmentName" title="Selected Segment Name" type="String" />
+		<property id="selectedLayer" title="Selected Layer" type="String" />
+
+		<!-- ========================== EVENTS ============================ -->
+		<property id="onSelect" title="on Select" type="ScriptText" />
+		<property id="onLayerToggle" title="on Layer Toggle" type="ScriptText" />
+
+		<!-- ===================== DEFAULT VALUES ========================= -->
+		<initialization>
+			<defaultValue property="WIDTH">600</defaultValue>
+			<defaultValue property="HEIGHT">400</defaultValue>
+			<defaultValue property="initialLat">39.2</defaultValue>
+			<defaultValue property="initialLng">35.2</defaultValue>
+			<defaultValue property="initialZoom">6</defaultValue>
+			<defaultValue property="minZoom">2</defaultValue>
+			<defaultValue property="maxZoom">18</defaultValue>
+			<defaultValue property="fitNetworkOnLoad">true</defaultValue>
+			<defaultValue property="tileUrl">https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png</defaultValue>
+			<defaultValue property="tileSubdomains">a,b,c</defaultValue>
+			<defaultValue property="tileOpacity">100</defaultValue>
+			<defaultValue property="backgroundColor">#eef2f5</defaultValue>
+			<defaultValue property="defaultColor">#5a6b7b</defaultValue>
+			<defaultValue property="highlightColor">#ff7f0e</defaultValue>
+			<defaultValue property="lineWeight">4</defaultValue>
+			<defaultValue property="baseLineWeight">2</defaultValue>
+			<defaultValue property="segmentIdProperty">id</defaultValue>
+			<defaultValue property="segmentNameProperty">name</defaultValue>
+			<defaultValue property="baseLayerTitle">Demiryolu Ağı</defaultValue>
+			<defaultValue property="baseLayerVisible">true</defaultValue>
+			<defaultValue property="layerColors">traffic,blue,rdylgn,heat,purple</defaultValue>
+			<defaultValue property="showLayerControl">true</defaultValue>
+			<defaultValue property="layerControlCollapsed">true</defaultValue>
+			<defaultValue property="layerControlTitle">Katmanlar</defaultValue>
+			<defaultValue property="showLegend">true</defaultValue>
+			<defaultValue property="legendTitle"></defaultValue>
+			<defaultValue property="showTooltip">true</defaultValue>
+			<defaultValue property="showZoomControl">true</defaultValue>
+		</initialization>
+
+	</component>
+</sdkExtension>

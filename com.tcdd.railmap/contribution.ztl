@@ -1,0 +1,142 @@
+/*
+ * TCDD Railway Map - BIAL scripting interface
+ * Exposes property accessors and runtime control methods to Lumira Designer
+ * scripts (e.g. RAILWAYMAP_1.setActiveMeasure("Tonaj");).
+ */
+class com.tcdd.railmap.RailwayMap extends Component {
+
+	/* ---- data ---- */
+	/* Technical name of the dimension carrying the segment id (joins to GeoJSON). */
+	void setSegmentDimension(String value) {* this.segmentDimension = value; *}
+	String getSegmentDimension() {* return this.segmentDimension; *}
+
+	/* ---- network ---- */
+	/* URL of the railway network GeoJSON FeatureCollection. */
+	void setNetworkUrl(String value) {* this.networkUrl = value; *}
+	String getNetworkUrl() {* return this.networkUrl; *}
+
+	/* Inline GeoJSON string (used when no URL is set). */
+	void setNetworkGeoJson(String value) {* this.networkGeoJson = value; *}
+	String getNetworkGeoJson() {* return this.networkGeoJson; *}
+
+	/* GeoJSON feature property that holds the segment id. */
+	void setSegmentIdProperty(String value) {* this.segmentIdProperty = value; *}
+	String getSegmentIdProperty() {* return this.segmentIdProperty; *}
+
+	/* GeoJSON feature property used as the human-readable segment name. */
+	void setSegmentNameProperty(String value) {* this.segmentNameProperty = value; *}
+	String getSegmentNameProperty() {* return this.segmentNameProperty; *}
+
+	/* ---- layers / styling ---- */
+	void setBaseLayerTitle(String value) {* this.baseLayerTitle = value; *}
+	String getBaseLayerTitle() {* return this.baseLayerTitle; *}
+
+	void setBaseLayerVisible(boolean value) {* this.baseLayerVisible = value; *}
+	boolean getBaseLayerVisible() {* return this.baseLayerVisible; *}
+
+	/* Comma separated colour ramp names per measure layer (traffic,blue,rdylgn,heat,purple,green,gray). */
+	void setLayerColors(String value) {* this.layerColors = value; *}
+	String getLayerColors() {* return this.layerColors; *}
+
+	/* Comma separated measure titles to show initially (blank = first measure only). */
+	void setVisibleLayers(String value) {* this.visibleLayers = value; *}
+	String getVisibleLayers() {* return this.visibleLayers; *}
+
+	void setShowLayerControl(boolean value) {* this.showLayerControl = value; *}
+	boolean getShowLayerControl() {* return this.showLayerControl; *}
+
+	void setLayerControlCollapsed(boolean value) {* this.layerControlCollapsed = value; *}
+	boolean getLayerControlCollapsed() {* return this.layerControlCollapsed; *}
+
+	void setLayerControlTitle(String value) {* this.layerControlTitle = value; *}
+	String getLayerControlTitle() {* return this.layerControlTitle; *}
+
+	void setDefaultColor(String value) {* this.defaultColor = value; *}
+	String getDefaultColor() {* return this.defaultColor; *}
+
+	void setHighlightColor(String value) {* this.highlightColor = value; *}
+	String getHighlightColor() {* return this.highlightColor; *}
+
+	void setLineWeight(int value) {* this.lineWeight = value; *}
+	int getLineWeight() {* return this.lineWeight; *}
+
+	void setBaseLineWeight(int value) {* this.baseLineWeight = value; *}
+	int getBaseLineWeight() {* return this.baseLineWeight; *}
+
+	void setShowLegend(boolean value) {* this.showLegend = value; *}
+	boolean getShowLegend() {* return this.showLegend; *}
+
+	void setLegendTitle(String value) {* this.legendTitle = value; *}
+	String getLegendTitle() {* return this.legendTitle; *}
+
+	void setShowTooltip(boolean value) {* this.showTooltip = value; *}
+	boolean getShowTooltip() {* return this.showTooltip; *}
+
+	void setShowZoomControl(boolean value) {* this.showZoomControl = value; *}
+	boolean getShowZoomControl() {* return this.showZoomControl; *}
+
+	/* ---- map view ---- */
+	void setInitialLat(float value) {* this.initialLat = value; *}
+	float getInitialLat() {* return this.initialLat; *}
+
+	void setInitialLng(float value) {* this.initialLng = value; *}
+	float getInitialLng() {* return this.initialLng; *}
+
+	void setInitialZoom(int value) {* this.initialZoom = value; *}
+	int getInitialZoom() {* return this.initialZoom; *}
+
+	void setMinZoom(int value) {* this.minZoom = value; *}
+	int getMinZoom() {* return this.minZoom; *}
+
+	void setMaxZoom(int value) {* this.maxZoom = value; *}
+	int getMaxZoom() {* return this.maxZoom; *}
+
+	void setFitNetworkOnLoad(boolean value) {* this.fitNetworkOnLoad = value; *}
+	boolean getFitNetworkOnLoad() {* return this.fitNetworkOnLoad; *}
+
+	/* ---- base tiles ---- */
+	void setTileUrl(String value) {* this.tileUrl = value; *}
+	String getTileUrl() {* return this.tileUrl; *}
+
+	void setTileSubdomains(String value) {* this.tileSubdomains = value; *}
+	String getTileSubdomains() {* return this.tileSubdomains; *}
+
+	void setTileOpacity(int value) {* this.tileOpacity = value; *}
+	int getTileOpacity() {* return this.tileOpacity; *}
+
+	void setBackgroundColor(String value) {* this.backgroundColor = value; *}
+	String getBackgroundColor() {* return this.backgroundColor; *}
+
+	/* ---- selection (read-only outputs) ---- */
+	String getSelectedSegment() {* return this.selectedSegment; *}
+	String getSelectedSegmentName() {* return this.selectedSegmentName; *}
+	String getSelectedLayer() {* return this.selectedLayer; *}
+
+	/* ======================= runtime control ======================= */
+
+	/* Show or hide a layer by id or title. */
+	void setLayerVisible(/* layer id or title */ String id, boolean visible) {* this.setLayerVisible(id, visible); *}
+	void showLayer(String id) {* this.showLayer(id); *}
+	void hideLayer(String id) {* this.hideLayer(id); *}
+	void toggleLayer(String id) {* this.toggleLayer(id); *}
+
+	/* Show exactly one measure layer and hide the rest -> switches the active measure at runtime. */
+	void showOnlyLayer(String id) {* this.showOnlyLayer(id); *}
+	void setActiveMeasure(/* measure title */ String name) {* this.setActiveMeasure(name); *}
+
+	/* Introspection. */
+	String getMeasures() {* return this.getMeasures(); *}
+	String getLayerIds() {* return this.getLayerIds(); *}
+	String getVisibleLayers2() {* return this.getVisibleLayers(); *}
+
+	/* Feed a layer entirely from script. dataJson is either {"segId":value,...}
+	   or [{"segment":"x","value":1},...]. ramp is optional (e.g. "heat"). */
+	void setLayerData(String id, String title, String dataJson, String ramp) {* this.setLayerData(id, title, dataJson, ramp); *}
+	void removeLayer(String id) {* this.removeLayer(id); *}
+
+	/* Navigation. */
+	void zoomToSegment(String segId) {* this.zoomToSegment(segId); *}
+	void fitToNetwork() {* this.fitToNetwork(); *}
+	void setView(float lat, float lng, int zoom) {* this.setView(lat, lng, zoom); *}
+	void refresh() {* this.refresh(); *}
+}
