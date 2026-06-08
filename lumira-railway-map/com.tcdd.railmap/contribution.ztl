@@ -147,6 +147,8 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	boolean getShowBasemapControl() {* return this.showBasemapControl; *}
 	void setAllowUpload(boolean value) {* this.allowUpload = value; *}
 	boolean getAllowUpload() {* return this.allowUpload; *}
+	void setUploadMode(/* layer|base|append */ String value) {* this.uploadMode = value; *}
+	String getUploadMode() {* return this.uploadMode; *}
 	void setUiTheme(/* light|dark */ String value) {* this.uiTheme = value; *}
 	String getUiTheme() {* return this.uiTheme; *}
 	void setTitle(String value) {* this.title = value; *}
@@ -186,6 +188,11 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	/* script-fed layers */
 	void setLayerData(String id, String title, String dataJson, String ramp) {* this.setLayerData(id, title, dataJson, ramp); *}
 	void removeLayer(String id) {* this.removeLayer(id); *}
+
+	/* geometry layers from a raw string (any format) -> separate toggleable layer */
+	void addNetworkLayer(String id, String title, String raw, String format) {* this.addNetworkLayer(id, title, raw, format); *}
+	void removeNetworkLayer(String id) {* this.removeNetworkLayer(id); *}
+	void clearUploads() {* this.clearUploads(); *}
 
 	/* basemap / selection / search / export */
 	void setBasemap(String name) {* this.setBasemap(name); *}

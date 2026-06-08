@@ -46,7 +46,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		// chrome
 		showToolbar: true, showSearch: true, showScaleBar: true, showCoordinates: false,
 		showZoomControl: true, showBasemapControl: true, uiTheme: "light", title: "", subtitle: "",
-		allowUpload: true,
+		allowUpload: true, uploadMode: "layer",
 		// outputs
 		selectedSegment: "", selectedSegmentName: "", selectedLayer: "",
 		centerLat: 39.2, centerLng: 35.2, currentZoom: 6
@@ -54,8 +54,10 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 
 	var meta = null, ds = null, engine = null;
 	var baseFeatures = [], measureOrder = [], scriptLayers = {};
+	var uploadedLayers = [], _uploadSeq = 0;        // file/script added geometry layers
 	var loadedNetworkKey = null, needData = false, needNetwork = false;
 	var ui = {}, vcTimer = null;
+	var UPCOLORS = ["#e15759", "#4e79a7", "#59a14f", "#b07aa1", "#9c755f", "#edc949", "#ff9da7", "#76b7b2"];
 
 	// ---- helpers ---------------------------------------------------------
 	function el(tag, css, parent) { var e = document.createElement(tag); if (css) { e.style.cssText = css; } if (parent) { parent.appendChild(e); } return e; }
@@ -172,22 +174,45 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 
 	// --- file upload / drag & drop (fully client-side, session only) ------
 	function formatFromName(n) { n = ("" + n).toLowerCase(); if (/\.kml$/.test(n)) { return "kml"; } if (/\.gpx$/.test(n)) { return "gpx"; } if (/\.topojson$/.test(n)) { return "topojson"; } if (/\.geojson$/.test(n)) { return "geojson"; } return "auto"; }
-	function handleFile(file) {
-		if (!file) { return; }
+	function stripExt(n) { return ("" + n).replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, ""); }
+	function parseToFeatures(raw, fmt) { return R.normalizeGeoJson(R.parseNetwork(raw, fmt || "auto"), cfg.segmentIdProperty, cfg.segmentNameProperty); }
+	function removeUpload(id) { for (var i = 0; i < uploadedLayers.length; i++) { if (uploadedLayers[i].id === id || uploadedLayers[i].id === "up::" + id || uploadedLayers[i].title === id) { uploadedLayers.splice(i, 1); return true; } } return false; }
+
+	// raw text -> a layer. Honours Upload Mode: layer | base | append
+	function addNetworkFromText(raw, fmt, title, fname) {
+		var feats;
+		try { feats = parseToFeatures(raw, fmt); }
+		catch (e) { status("Ayrıştırılamadı (" + (fmt || "auto") + "): " + e.message); return false; }
+		if (!feats.length) { status("Dosya boş ya da çizgi/nokta içermiyor"); return false; }
+		var mode = ("" + cfg.uploadMode).toLowerCase();
+		if (mode === "base") { baseFeatures = feats; loadedNetworkKey = "upload:" + (fname || title); }
+		else if (mode === "append") { baseFeatures = baseFeatures.concat(feats); }
+		else { _uploadSeq++; uploadedLayers.push({ id: "up::" + _uploadSeq, title: stripExt(title) || ("Katman " + _uploadSeq), features: feats, color: UPCOLORS[(uploadedLayers.length) % UPCOLORS.length], weight: cfg.baseLineWeight + 1, visible: true }); }
+		hideStatus();
+		return true;
+	}
+	function handleFiles(files) {
+		if (!files || !files.length) { return; }
 		if (typeof FileReader === "undefined") { status("Bu tarayıcı dosya okumayı desteklemiyor"); return; }
-		status("Dosya okunuyor: " + file.name + " …");
-		try {
-			var fr = new FileReader();
-			fr.onload = function () { loadedNetworkKey = "upload:" + file.name + ":" + ("" + fr.result).length; parseAndSet("" + fr.result, formatFromName(file.name)); };
-			fr.onerror = function () { status("Dosya okunamadı: " + file.name); };
-			fr.readAsText(file);
-		} catch (e) { status("Yükleme başarısız: " + e.message); }
+		var pending = files.length, changed = false;
+		status((files.length > 1 ? (files.length + " dosya") : files[0].name) + " okunuyor …");
+		for (var i = 0; i < files.length; i++) {
+			(function (file) {
+				try {
+					var fr = new FileReader();
+					fr.onload = function () { if (addNetworkFromText("" + fr.result, formatFromName(file.name), file.name, file.name)) { changed = true; } done(); };
+					fr.onerror = function () { status("Dosya okunamadı: " + file.name); done(); };
+					fr.readAsText(file);
+				} catch (e) { status("Yükleme başarısız: " + e.message); done(); }
+			})(files[i]);
+		}
+		function done() { if (--pending <= 0 && changed) { rebuildLayers(); if (cfg.fitNetworkOnLoad) { engine.fitBounds(engine.allBounds()); } } }
 	}
 	function bindUpload(host) {
 		if (!host.addEventListener) { return; }
 		host.addEventListener("dragover", function (e) { if (!cfg.allowUpload) { return; } e.preventDefault(); if (ui.drop) { ui.drop.style.display = ""; } });
 		host.addEventListener("dragleave", function () { if (ui.drop) { ui.drop.style.display = "none"; } });
-		host.addEventListener("drop", function (e) { if (!cfg.allowUpload) { return; } e.preventDefault(); if (ui.drop) { ui.drop.style.display = "none"; } var dt = e.dataTransfer; if (dt && dt.files && dt.files.length) { handleFile(dt.files[0]); } });
+		host.addEventListener("drop", function (e) { if (!cfg.allowUpload) { return; } e.preventDefault(); if (ui.drop) { ui.drop.style.display = "none"; } var dt = e.dataTransfer; if (dt && dt.files && dt.files.length) { handleFiles(dt.files); } });
 	}
 
 	// ======================================================================
@@ -244,18 +269,35 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	function rebuildLayers() {
 		if (!engine) { return; }
 		engine.clearLayers();
-		if (!baseFeatures.length) { layoutOverlays(); return; }
+		if (!baseFeatures.length && !uploadedLayers.length) { layoutOverlays(); return; }
 
-		engine.addLayer({
-			id: "__base__", title: cfg.baseLayerTitle, kind: "base", features: baseFeatures, visible: cfg.baseLayerVisible,
-			color: cfg.defaultColor, weight: cfg.baseLineWeight, highlightColor: cfg.highlightColor,
-			styleFn: function () { return { color: cfg.defaultColor, weight: cfg.baseLineWeight }; }
-		});
+		// base network (bottom) — measures distribute over this geometry
+		if (baseFeatures.length) {
+			engine.addLayer({
+				id: "__base__", title: cfg.baseLayerTitle, kind: "base", features: baseFeatures, visible: cfg.baseLayerVisible,
+				color: cfg.defaultColor, weight: cfg.baseLineWeight, highlightColor: cfg.highlightColor,
+				styleFn: function () { return { color: cfg.defaultColor, weight: cfg.baseLineWeight }; }
+			});
+		}
 
-		var maps = buildMeasureMaps(), rs = ramps(), ov = layerOverrides(), visList = parseVisibleList(), i;
-		for (i = 0; i < measureOrder.length; i++) { addMeasureLayer(measureOrder[i], maps[measureOrder[i]], rs[i % rs.length], decideVisible(measureOrder[i], i, visList), null, ov[measureOrder[i]]); }
-		var si = measureOrder.length;
-		for (var id in scriptLayers) { if (scriptLayers.hasOwnProperty(id)) { var sl = scriptLayers[id]; addMeasureLayer(sl.title || id, sl.values, sl.ramp || rs[si % rs.length], sl.visible !== false, id, sl.cfg); si++; } }
+		// uploaded / script-added geometry layers — each its own colour, toggleable
+		for (var u = 0; u < uploadedLayers.length; u++) {
+			var up = uploadedLayers[u];
+			engine.addLayer({
+				id: up.id, title: up.title, kind: "upload", features: up.features, visible: up.visible !== false,
+				color: up.color, weight: up.weight || (cfg.baseLineWeight + 1), highlightColor: cfg.highlightColor,
+				casing: cfg.lineCasing, pointRadius: cfg.pointRadius, pointStroke: true,
+				styleFn: (function (c, w) { return function () { return { color: c, weight: w }; }; })(up.color, up.weight || (cfg.baseLineWeight + 1))
+			});
+		}
+
+		// measure layers (need base geometry to colour)
+		if (baseFeatures.length) {
+			var maps = buildMeasureMaps(), rs = ramps(), ov = layerOverrides(), visList = parseVisibleList(), i;
+			for (i = 0; i < measureOrder.length; i++) { addMeasureLayer(measureOrder[i], maps[measureOrder[i]], rs[i % rs.length], decideVisible(measureOrder[i], i, visList), null, ov[measureOrder[i]]); }
+			var si = measureOrder.length;
+			for (var id in scriptLayers) { if (scriptLayers.hasOwnProperty(id)) { var sl = scriptLayers[id]; addMeasureLayer(sl.title || id, sl.values, sl.ramp || rs[si % rs.length], sl.visible !== false, id, sl.cfg); si++; } }
+		}
 
 		layoutOverlays();
 		engine.scheduleRender();
@@ -338,8 +380,9 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		txt(ui.drop, "Ağ dosyasını bırakın (GeoJSON / TopoJSON / KML / GPX / JSON)");
 		ui.fileInput = el("input", "display:none;", host);
 		ui.fileInput.type = "file";
+		ui.fileInput.multiple = true;
 		ui.fileInput.accept = ".geojson,.json,.topojson,.kml,.gpx,.txt,application/json,application/vnd.google-earth.kml+xml";
-		ui.fileInput.onchange = function () { if (ui.fileInput.files && ui.fileInput.files.length) { handleFile(ui.fileInput.files[0]); } ui.fileInput.value = ""; };
+		ui.fileInput.onchange = function () { if (ui.fileInput.files && ui.fileInput.files.length) { handleFiles(ui.fileInput.files); } ui.fileInput.value = ""; };
 	}
 
 	function layoutOverlays() {
@@ -562,7 +605,15 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		}
 		var props = csv(cfg.tooltipProperties);
 		for (i = 0; i < props.length; i++) { if (f.props && f.props[props[i]] != null) { tip.appendChild(tipRow(null, props[i], "" + f.props[props[i]])); rows++; } }
-		if (!rows) { txt(el("div", "color:#aeb8c2;font-size:10px;", tip), "Bu segment için veri yok"); }
+		// no measures/explicit props matched -> show a few of the feature's own attributes
+		if (!rows && f.props) {
+			var shown = 0;
+			for (var pk in f.props) {
+				if (!f.props.hasOwnProperty(pk) || pk === cfg.segmentIdProperty || pk === cfg.segmentNameProperty || f.props[pk] == null) { continue; }
+				tip.appendChild(tipRow(null, pk, "" + f.props[pk])); rows++; if (++shown >= 6) { break; }
+			}
+		}
+		if (!rows) { txt(el("div", "color:#aeb8c2;font-size:10px;", tip), "Ek veri yok"); }
 	}
 	function tipRow(color, label, value) {
 		var r = el("div", "display:flex;align-items:center;gap:6px;");
@@ -616,6 +667,19 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	};
 	this.removeLayer = function (id) { if (scriptLayers[id]) { delete scriptLayers[id]; rebuildLayers(); } return this; };
 
+	// add a geometry layer from a raw string (any format) as its own toggleable layer
+	this.addNetworkLayer = function (id, title, raw, format) {
+		var feats; try { feats = parseToFeatures(raw, format || "auto"); } catch (e) { return this; }
+		if (!feats.length) { return this; }
+		removeUpload("up::" + id);
+		_uploadSeq++;
+		uploadedLayers.push({ id: "up::" + id, title: title || id, features: feats, color: UPCOLORS[(uploadedLayers.length) % UPCOLORS.length], weight: cfg.baseLineWeight + 1, visible: true });
+		rebuildLayers(); if (cfg.fitNetworkOnLoad) { engine.fitBounds(engine.allBounds()); }
+		return this;
+	};
+	this.removeNetworkLayer = function (id) { if (removeUpload(id)) { rebuildLayers(); } return this; };
+	this.clearUploads = function () { uploadedLayers = []; rebuildLayers(); return this; };
+
 	this.setBasemap = function (name) { cfg.basemap = name; applyBasemap(); buildBasemapControl(); return this; };
 	this.selectSegment = function (id) { for (var i = 0; i < baseFeatures.length; i++) { if (baseFeatures[i].id === ("" + id)) { selectFeature(baseFeatures[i], engine.layers[0]); return this; } } return this; };
 	this.clearSelection = function () { cfg.selectedSegment = ""; cfg.selectedSegmentName = ""; engine.setSelected(null, null); return this; };
@@ -643,7 +707,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	var plain = ["baseLayerTitle", "layerControlTitle", "layerControlMode", "legendTitle", "selectedSegment", "selectedSegmentName", "selectedLayer",
 		"initialLat", "initialLng", "initialZoom", "minZoom", "maxZoom", "tileOpacity", "tileUrl", "tileSubdomains", "basemap",
 		"showLayerControl", "layerControlCollapsed", "showLegend", "showTooltip", "tooltipShowMeasures", "tooltipProperties",
-		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl", "allowUpload",
+		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl", "allowUpload", "uploadMode",
 		"fitNetworkOnLoad", "backgroundColor", "highlightColor", "uiTheme", "title", "subtitle", "valueUnit",
 		"centerLat", "centerLng", "currentZoom"];
 	for (var pi = 0; pi < plain.length; pi++) { accessor(plain[pi]); }

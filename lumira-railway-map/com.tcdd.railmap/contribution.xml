@@ -128,6 +128,7 @@
 		<property id="showZoomControl" title="Show Zoom Control" type="boolean" group="11 - Arayüz" tooltip="+/- yakınlaştırma düğmeleri." />
 		<property id="showBasemapControl" title="Show Basemap Control" type="boolean" group="11 - Arayüz" tooltip="Altlık seçim kutusunu göster." />
 		<property id="allowUpload" title="Allow File Upload" type="boolean" group="11 - Arayüz" tooltip="Araç çubuğunda dosya yükleme düğmesi ve haritaya sürükle-bırak ile yerel ağ dosyası (GeoJSON/TopoJSON/KML/GPX/JSON) yükleme. Tamamen tarayıcı tarafında, oturum içidir (kaydedilmez)." />
+		<property id="uploadMode" title="Upload Mode (layer/base/append)" type="String" group="11 - Arayüz" tooltip="Yüklenen her dosya ne olsun: layer = ayrı yeni katman (varsayılan), base = taban ağı değiştir (ölçüler buna dağılır), append = mevcut tabana ekle." />
 		<property id="uiTheme" title="UI Theme (light/dark)" type="String" group="11 - Arayüz" tooltip="Panel teması: light veya dark." />
 		<property id="title" title="Title" type="String" group="11 - Arayüz" tooltip="Üst ortada başlık." />
 		<property id="subtitle" title="Subtitle" type="String" group="11 - Arayüz" tooltip="Başlık altı alt metin." />
@@ -205,6 +206,7 @@
 			<defaultValue property="showZoomControl">true</defaultValue>
 			<defaultValue property="showBasemapControl">true</defaultValue>
 			<defaultValue property="allowUpload">true</defaultValue>
+			<defaultValue property="uploadMode">layer</defaultValue>
 			<defaultValue property="uiTheme">light</defaultValue>
 			<defaultValue property="title"></defaultValue>
 			<defaultValue property="subtitle"></defaultValue>
