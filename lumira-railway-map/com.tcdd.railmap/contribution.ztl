@@ -15,9 +15,13 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	void setNetworkUrl(String value) {* this.networkUrl = value; *}
 	String getNetworkUrl() {* return this.networkUrl; *}
 
-	/* Inline GeoJSON string (used when no URL is set). */
+	/* Inline network string (used when no URL is set); any supported format. */
 	void setNetworkGeoJson(String value) {* this.networkGeoJson = value; *}
 	String getNetworkGeoJson() {* return this.networkGeoJson; *}
+
+	/* Network format: auto | geojson | topojson | kml | gpx | json */
+	void setNetworkFormat(String value) {* this.networkFormat = value; *}
+	String getNetworkFormat() {* return this.networkFormat; *}
 
 	/* GeoJSON feature property that holds the segment id. */
 	void setSegmentIdProperty(String value) {* this.segmentIdProperty = value; *}
@@ -71,6 +75,14 @@ class com.tcdd.railmap.RailwayMap extends Component {
 
 	void setShowTooltip(boolean value) {* this.showTooltip = value; *}
 	boolean getShowTooltip() {* return this.showTooltip; *}
+
+	/* List every measure value of a segment in its hover tooltip. */
+	void setTooltipShowMeasures(boolean value) {* this.tooltipShowMeasures = value; *}
+	boolean getTooltipShowMeasures() {* return this.tooltipShowMeasures; *}
+
+	/* Extra network feature property names (csv) to show in the tooltip. */
+	void setTooltipProperties(String value) {* this.tooltipProperties = value; *}
+	String getTooltipProperties() {* return this.tooltipProperties; *}
 
 	void setShowZoomControl(boolean value) {* this.showZoomControl = value; *}
 	boolean getShowZoomControl() {* return this.showZoomControl; *}
@@ -127,7 +139,7 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	/* Introspection. */
 	String getMeasures() {* return this.getMeasures(); *}
 	String getLayerIds() {* return this.getLayerIds(); *}
-	String getVisibleLayers2() {* return this.getVisibleLayers(); *}
+	String getVisibleLayers() {* return this.getVisibleLayers(); *}
 
 	/* Feed a layer entirely from script. dataJson is either {"segId":value,...}
 	   or [{"segment":"x","value":1},...]. ramp is optional (e.g. "heat"). */

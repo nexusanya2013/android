@@ -114,6 +114,178 @@ if (!window.TCDDRailMap) {
 		}
 
 		// ====================================================================
+		//  Multi-format network parsing  (GeoJSON / TopoJSON / KML / GPX / JSON)
+		//  parseNetwork(raw, format) always returns a GeoJSON FeatureCollection,
+		//  which normalizeGeoJson() then turns into internal features. Coordinates
+		//  are expected as WGS84 [lng, lat].
+		// ====================================================================
+		function detectFormat(raw) {
+			if (raw == null) { return "geojson"; }
+			if (typeof raw === "object") { return (raw.type === "Topology") ? "topojson" : "geojson"; }
+			var s = ("" + raw).replace(/^﻿/, "").replace(/^\s+/, "");
+			if (s.charAt(0) === "<") {                                 // XML family
+				if (/<gpx[\s>]/i.test(s)) { return "gpx"; }
+				return "kml";
+			}
+			try {                                                       // JSON family
+				var o = JSON.parse(s);
+				if (o && o.type === "Topology") { return "topojson"; }
+				if (o && (o.type === "FeatureCollection" || o.type === "Feature" || o.coordinates)) { return "geojson"; }
+				return "json";
+			} catch (e) { return "geojson"; }
+		}
+
+		function parseNetwork(raw, format) {
+			format = (format && format !== "auto") ? ("" + format).toLowerCase() : detectFormat(raw);
+			switch (format) {
+				case "kml": return kmlToGeoJson(raw);
+				case "gpx": return gpxToGeoJson(raw);
+				case "topojson": return topojsonToGeoJson(typeof raw === "string" ? JSON.parse(raw) : raw);
+				case "json": return plainJsonToGeoJson(typeof raw === "string" ? JSON.parse(raw) : raw);
+				default: return (typeof raw === "string") ? JSON.parse(raw) : raw;   // geojson
+			}
+		}
+
+		// --- XML helpers (KML / GPX) -----------------------------------------
+		function xmlDoc(str) {
+			if (typeof DOMParser === "undefined") { throw new Error("DOMParser yok (XML ayrıştırılamıyor)"); }
+			return new DOMParser().parseFromString("" + str, "text/xml");
+		}
+		function tags(node, name) {                                     // namespace-agnostic
+			return node.getElementsByTagNameNS ? node.getElementsByTagNameNS("*", name) : node.getElementsByTagName(name);
+		}
+		function textOf(node, name) { var t = tags(node, name); return t.length ? trim(t[0].textContent) : null; }
+		function trim(s) { return s == null ? null : ("" + s).replace(/^\s+|\s+$/g, ""); }
+		function parseCoordList(txt) {                                  // "lng,lat[,alt] lng,lat ..."
+			var out = [], toks = trim(("" + txt).replace(/\s+/g, " ")).split(" ");
+			for (var i = 0; i < toks.length; i++) {
+				if (!toks[i]) { continue; }
+				var c = toks[i].split(","), lng = parseFloat(c[0]), lat = parseFloat(c[1]);
+				if (!isNaN(lng) && !isNaN(lat)) { out.push([lng, lat]); }
+			}
+			return out;
+		}
+
+		// --- KML --------------------------------------------------------------
+		function kmlToGeoJson(str) {
+			var doc = xmlDoc(str), feats = [], pms = tags(doc, "Placemark");
+			for (var i = 0; i < pms.length; i++) {
+				var pm = pms[i], props = {}, nm = textOf(pm, "name");
+				if (nm != null) { props.name = nm; }
+				var ds = tags(pm, "Data");
+				for (var d = 0; d < ds.length; d++) { var k = ds[d].getAttribute("name"); if (k) { props[k] = textOf(ds[d], "value"); } }
+				var sds = tags(pm, "SimpleData");
+				for (var s = 0; s < sds.length; s++) { var k2 = sds[s].getAttribute("name"); if (k2) { props[k2] = trim(sds[s].textContent); } }
+				var geoms = [];
+				pushKmlLines(pm, "LineString", geoms);
+				pushKmlPolys(pm, geoms);
+				var pts = tags(pm, "Point");
+				for (var p = 0; p < pts.length; p++) { var pc = parseCoordList(textOf(pts[p], "coordinates")); if (pc.length) { geoms.push({ type: "Point", coordinates: pc[0] }); } }
+				for (var g = 0; g < geoms.length; g++) { feats.push({ type: "Feature", properties: clone(props), geometry: geoms[g] }); }
+			}
+			return { type: "FeatureCollection", features: feats };
+		}
+		function pushKmlLines(pm, tag, out) {
+			var ls = tags(pm, tag);
+			for (var i = 0; i < ls.length; i++) { var c = parseCoordList(textOf(ls[i], "coordinates")); if (c.length > 1) { out.push({ type: "LineString", coordinates: c }); } }
+		}
+		function pushKmlPolys(pm, out) {
+			var polys = tags(pm, "Polygon");
+			for (var i = 0; i < polys.length; i++) {
+				var rings = [], lr = tags(polys[i], "LinearRing");
+				for (var r = 0; r < lr.length; r++) { var rc = parseCoordList(textOf(lr[r], "coordinates")); if (rc.length) { rings.push(rc); } }
+				if (rings.length) { out.push({ type: "Polygon", coordinates: rings }); }
+			}
+		}
+
+		// --- GPX --------------------------------------------------------------
+		function gpxToGeoJson(str) {
+			var doc = xmlDoc(str), feats = [], i;
+			var trks = tags(doc, "trk");
+			for (i = 0; i < trks.length; i++) {
+				var lines = [], segs = tags(trks[i], "trkseg");
+				for (var s = 0; s < segs.length; s++) { var ln = gpxPts(segs[s], "trkpt"); if (ln.length) { lines.push(ln); } }
+				if (lines.length) { feats.push(gpxFeature(textOf(trks[i], "name"), lines)); }
+			}
+			var rtes = tags(doc, "rte");
+			for (i = 0; i < rtes.length; i++) { var rl = gpxPts(rtes[i], "rtept"); if (rl.length) { feats.push(gpxFeature(textOf(rtes[i], "name"), [rl])); } }
+			var wpts = tags(doc, "wpt");
+			for (i = 0; i < wpts.length; i++) { var w = gpxPt(wpts[i]); if (w) { feats.push({ type: "Feature", properties: { name: textOf(wpts[i], "name") }, geometry: { type: "Point", coordinates: w } }); } }
+			return { type: "FeatureCollection", features: feats };
+		}
+		function gpxPt(node) { var lat = parseFloat(node.getAttribute("lat")), lon = parseFloat(node.getAttribute("lon")); return (isNaN(lat) || isNaN(lon)) ? null : [lon, lat]; }
+		function gpxPts(parent, tag) { var out = [], pts = tags(parent, tag); for (var i = 0; i < pts.length; i++) { var c = gpxPt(pts[i]); if (c) { out.push(c); } } return out; }
+		function gpxFeature(name, lines) {
+			var geom = lines.length > 1 ? { type: "MultiLineString", coordinates: lines } : { type: "LineString", coordinates: lines[0] };
+			return { type: "Feature", properties: { name: name }, geometry: geom };
+		}
+
+		// --- TopoJSON ---------------------------------------------------------
+		function topojsonToGeoJson(topo) {
+			var feats = [];
+			if (!topo || !topo.objects) { return { type: "FeatureCollection", features: feats }; }
+			var arcs = topo.arcs || [], tr = topo.transform;
+			function decodeArc(idx) {
+				var rev = idx < 0; if (rev) { idx = ~idx; }
+				var arc = arcs[idx] || [], out = [], x = 0, y = 0;
+				for (var i = 0; i < arc.length; i++) {
+					if (tr) { x += arc[i][0]; y += arc[i][1]; out.push([x * tr.scale[0] + tr.translate[0], y * tr.scale[1] + tr.translate[1]]); }
+					else { out.push([arc[i][0], arc[i][1]]); }
+				}
+				if (rev) { out.reverse(); }
+				return out;
+			}
+			function stitch(idxs) { var line = [], i; for (i = 0; i < idxs.length; i++) { var dec = decodeArc(idxs[i]); if (i > 0) { dec = dec.slice(1); } line = line.concat(dec); } return line; }
+			function pt(p) { return tr ? [p[0] * tr.scale[0] + tr.translate[0], p[1] * tr.scale[1] + tr.translate[1]] : p; }
+			function geom(g) {
+				switch (g.type) {
+					case "LineString": return { type: "LineString", coordinates: stitch(g.arcs) };
+					case "MultiLineString": return { type: "MultiLineString", coordinates: mapArr(g.arcs, stitch) };
+					case "Polygon": return { type: "Polygon", coordinates: mapArr(g.arcs, stitch) };
+					case "MultiPolygon": return { type: "MultiPolygon", coordinates: mapArr(g.arcs, function (poly) { return mapArr(poly, stitch); }) };
+					case "Point": return { type: "Point", coordinates: pt(g.coordinates) };
+					case "MultiPoint": return { type: "MultiPoint", coordinates: mapArr(g.coordinates, pt) };
+				}
+				return null;
+			}
+			for (var key in topo.objects) {
+				if (!topo.objects.hasOwnProperty(key)) { continue; }
+				var obj = topo.objects[key];
+				var gs = (obj.type === "GeometryCollection") ? obj.geometries : [obj];
+				for (var i = 0; i < gs.length; i++) {
+					var gj = geom(gs[i]);
+					if (gj) { feats.push({ type: "Feature", id: gs[i].id, properties: gs[i].properties || {}, geometry: gj }); }
+				}
+			}
+			return { type: "FeatureCollection", features: feats };
+		}
+		function mapArr(a, fn) { var o = []; for (var i = 0; i < a.length; i++) { o.push(fn(a[i])); } return o; }
+
+		// --- plain JSON (array of segments) -----------------------------------
+		function plainJsonToGeoJson(obj) {
+			var feats = [], arr = (obj instanceof Array) ? obj : (obj && obj.features) ? obj.features : (obj && obj.segments) ? obj.segments : [];
+			for (var i = 0; i < arr.length; i++) {
+				var it = arr[i] || {}, coords = it.coordinates || it.coords || it.path || it.line, line = null;
+				if (coords && coords.length) {
+					line = [];
+					for (var j = 0; j < coords.length; j++) {
+						var c = coords[j];
+						if (c instanceof Array) { line.push([+c[0], +c[1]]); }
+						else if (c && c.lng != null) { line.push([+c.lng, +c.lat]); }
+						else if (c && c.lon != null) { line.push([+c.lon, +c.lat]); }
+					}
+				}
+				var props = it.properties || {};
+				if (it.id != null) { props.id = it.id; }
+				if (it.name != null) { props.name = it.name; }
+				if (line && line.length > 1) { feats.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: line } }); }
+				else if (it.lat != null && (it.lng != null || it.lon != null)) { feats.push({ type: "Feature", properties: props, geometry: { type: "Point", coordinates: [+(it.lng != null ? it.lng : it.lon), +it.lat] } }); }
+			}
+			return { type: "FeatureCollection", features: feats };
+		}
+		function clone(o) { var n = {}; for (var k in o) { if (o.hasOwnProperty(k)) { n[k] = o[k]; } } return n; }
+
+		// ====================================================================
 		//  MapEngine
 		// ====================================================================
 		function MapEngine(container, opts) {
@@ -486,7 +658,13 @@ if (!window.TCDDRailMap) {
 			rampColor: rampColor,
 			rampStops: rampStops,
 			RAMPS: RAMPS,
-			normalizeGeoJson: normalizeGeoJson
+			normalizeGeoJson: normalizeGeoJson,
+			parseNetwork: parseNetwork,
+			detectFormat: detectFormat,
+			kmlToGeoJson: kmlToGeoJson,
+			gpxToGeoJson: gpxToGeoJson,
+			topojsonToGeoJson: topojsonToGeoJson,
+			plainJsonToGeoJson: plainJsonToGeoJson
 		};
 	})();
 }
