@@ -16,6 +16,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 		// chrome
 		title: "", subtitle: "", theme: "dark", density: "normal", zebra: true, stickyHeader: true,
 		freezeFirstColumn: true, showRowNumbers: false, showToolbar: true,
+		showFieldChooser: true, accentColor: "", gridLines: "rows", headerUppercase: true,
 		// totals
 		showColumnTotals: false, totalAggregation: "sum", totalsLabel: "Toplam",
 		// format
@@ -56,13 +57,32 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 	this.afterUpdate = function () { if (!G) { return; } applyTheme(); render(); };
 
 	function applyTheme() {
-		ui.root.className = "tcx tcx-" + (cfg.theme === "light" ? "light" : "dark") + " d-" + (cfg.density || "normal");
+		ui.root.className = "tcx tcx-" + (cfg.theme === "light" ? "light" : "dark") + " d-" + (cfg.density || "normal") +
+			" gl-" + (cfg.gridLines || "rows") + (cfg.headerUppercase ? "" : " hu-off");
+		try { ui.root.style.cssText = cfg.accentColor ? ("--accent:" + cfg.accentColor) : ""; } catch (e) { }
 	}
 
 	// ===================== data =====================
+	// some bindings deliver metadata on the cell list itself rather than globally
+	function effMeta() { return meta || (ds && (ds.metadata || (ds.dimensions ? ds : null))) || null; }
+	function fieldsOf(m) {
+		var f = { dims: [], measures: [], hasMeta: !!(m && m.dimensions) };
+		if (!f.hasMeta) { return f; }
+		for (var i = 0; i < m.dimensions.length; i++) {
+			var d = m.dimensions[i], list = d.containsMeasures ? f.measures : f.dims;
+			var mem = d.members || [];
+			for (var j = 0; j < mem.length; j++) { list.push({ key: mem[j].key != null ? ("" + mem[j].key) : ("" + mem[j].text), text: mem[j].text != null ? ("" + mem[j].text) : ("" + mem[j].key), dimKey: d.key, dimText: d.text }); }
+			if (!d.containsMeasures && (!mem.length)) { /* dim with no listed members still selectable */ }
+		}
+		// dimensions list (for row/column pickers) = distinct non-measure dimensions
+		f.dimList = [];
+		for (i = 0; i < m.dimensions.length; i++) { if (!m.dimensions[i].containsMeasures) { f.dimList.push({ key: m.dimensions[i].key, text: m.dimensions[i].text || m.dimensions[i].key }); } }
+		return f;
+	}
 	function buildModel() {
-		model = G.normalize(meta, ds, { rowDimKeys: csv(cfg.rowDimensions), columnDimKey: cfg.columnDimension, measureFilter: csv(cfg.measureFilter) });
-		// derive numeric stats per column + table
+		var em = effMeta();
+		model = G.normalize(em, ds, { rowDimKeys: csv(cfg.rowDimensions), columnDimKey: cfg.columnDimension, measureFilter: csv(cfg.measureFilter) });
+		model.fields = fieldsOf(em);
 		var all = [];
 		for (var c = 0; c < model.columns.length; c++) {
 			var col = model.columns[c], vals = [];
@@ -73,7 +93,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 	}
 
 	function resolveCol(col) {
-		var cc = jget(cfg.columnConfig), o = cc[col.measure] || cc[col.label] || {};
+		var cc = jget(cfg.columnConfig), o = cc[col.measure] || cc[col.measureKey] || cc[col.label] || {};
 		return {
 			viz: ("" + (o.viz || cfg.cellViz)).toLowerCase(),
 			ramp: o.ramp || cfg.heatRamp, barColor: o.color || o.barColor || cfg.barColor,
@@ -115,7 +135,22 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 	}
 	function renderBody() {
 		clear(ui.scroll); clear(ui.pager);
-		if (!model.columns.length && !model.rows.length) { txt(el("div", "tcx-empty", ui.scroll), "Veri kaynağı bağlayın (satırlarda boyut, sütunlarda ölçü)."); return; }
+		if (!model.columns.length || !model.rows.length) {
+			var box = el("div", "tcx-empty", ui.scroll), f = model.fields;
+			if (f && f.hasMeta) {
+				txt(el("div", "tcx-empty-t", box), model.rows.length ? "Gösterilecek ölçü seçili değil." : "Veri kaynağı bağlı; satır verisi gelmedi.");
+				txt(el("div", "tcx-empty-s", box), model.rows.length ? "⚙ Alanlar'dan en az bir ölçü seçin." : "Değişken/prompt bekleniyor olabilir veya sonuç boş. Sorgu çalıştırıldı mı?");
+				var di = []; for (var i = 0; i < f.dimList.length; i++) { di.push(f.dimList[i].text); }
+				var me = []; for (i = 0; i < f.measures.length; i++) { me.push(f.measures[i].text); }
+				if (di.length) { txt(el("div", "tcx-empty-i", box), "Algılanan boyutlar: " + di.join(", ")); }
+				if (me.length) { txt(el("div", "tcx-empty-i", box), "Algılanan ölçüler: " + me.slice(0, 12).join(", ") + (me.length > 12 ? " …" : "")); }
+				txt(el("div", "tcx-empty-s", box), "Sağ üstteki ⚙ Alanlar ile satır/ölçü seçebilirsiniz (teknik ad yazmadan).");
+			} else {
+				txt(el("div", "tcx-empty-t", box), "Veri kaynağı bağlı değil.");
+				txt(el("div", "tcx-empty-s", box), "BEx sorgunuzu bu bileşenin Data Binding'ine atayın (boyutlar satır, anahtar rakamlar/ölçüler sütun).");
+			}
+			return;
+		}
 		var rows = sortRows(filterRows(model.rows));
 		var total = rows.length, ps = cfg.pageSize | 0;
 		if (ps > 0) { var maxp = Math.max(0, Math.ceil(total / ps) - 1); if (page > maxp) { page = maxp; } rows = rows.slice(page * ps, page * ps + ps); }
@@ -162,7 +197,72 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 			var inp = el("input", "tcx-search", right); inp.type = "text"; inp.placeholder = "🔍 Ara…"; inp.value = query;
 			inp.oninput = function () { query = inp.value; page = 0; renderBody(); };   // body only -> input keeps focus
 		}
+		if (cfg.showFieldChooser && model && model.fields && model.fields.hasMeta) { var fb = el("button", "tcx-btn tcx-btn2", right); txt(fb, "⚙ Alanlar"); fb.onclick = openChooser; }
 		if (cfg.exportable) { var b = el("button", "tcx-btn", right); txt(b, "⤓ CSV"); b.onclick = exportCSV; }
+	}
+
+	// ===================== field chooser (pop-up picker) =====================
+	function openChooser() {
+		var f = model.fields; if (!f || !f.hasMeta) { return; }
+		var rowSel = csv(cfg.rowDimensions), measSel = csv(cfg.measureFilter), sparkSel = csv(cfg.sparkColumns), pieSel = csv(cfg.pieColumns), colSel = cfg.columnDimension || "";
+		var cc = jget(cfg.columnConfig);
+		function inSel(arr, key, text) { return arr.length === 0 ? false : (arr.indexOf(key) >= 0 || arr.indexOf(text) >= 0); }
+
+		var mask = el("div", "tcx-mask", ui.root);
+		var dlg = el("div", "tcx-dlg", mask);
+		var hd = el("div", "tcx-dlg-h", dlg); txt(el("span", null, hd), "Alanları Seç");
+		var x = el("span", "tcx-x", hd); x.innerHTML = "✕"; x.onclick = close;
+		var bd = el("div", "tcx-dlg-b", dlg);
+
+		// ROW DIMENSIONS
+		sec(bd, "Satır Boyutları", "Tabloda satır başlığı olacak alanlar");
+		var rowBoxes = [];
+        var i;
+		for (i = 0; i < f.dimList.length; i++) { (function (d) { var r = rowItem(bd, d.text, d.key, rowSel.length ? inSel(rowSel, d.key, d.text) : true); rowBoxes.push({ key: d.key, cb: r }); })(f.dimList[i]); }
+
+		// COLUMN DIMENSION
+		sec(bd, "Sütun Boyutu (çapraz – opsiyonel)", "Bu alanın üyeleri her ölçü için sütuna açılır");
+		var colSelEl = el("select", "tcx-dlg-sel", bd); var o0 = el("option", null, colSelEl); o0.value = ""; txt(o0, "(Yok)");
+		for (i = 0; i < f.dimList.length; i++) { var op = el("option", null, colSelEl); op.value = f.dimList[i].key; txt(op, f.dimList[i].text); if (colSel === f.dimList[i].key) { op.selected = true; } }
+
+		// MEASURES (include + viz + spark + pie)
+		sec(bd, "Ölçüler", "Göster / gösterim tipi / sparkline / pasta");
+		var measRows = [];
+		var seen = {};
+		for (i = 0; i < f.measures.length; i++) {
+			var m = f.measures[i]; if (seen[m.key]) { continue; } seen[m.key] = 1;
+			(function (m) {
+				var row = el("div", "tcx-mrow", bd);
+				var cb = el("input", null, row); cb.type = "checkbox"; cb.checked = measSel.length ? inSel(measSel, m.key, m.text) : true;
+				txt(el("span", "tcx-mname", row), m.text);
+				var vsel = el("select", "tcx-mini", row); ["value:Sayı", "bar:Bar", "heat:Isı", "dot:Nokta", "pill:Etiket"].forEach(function (p) { var pv = p.split(":"), op = el("option", null, vsel); op.value = pv[0]; txt(op, pv[1]); var cur = (cc[m.key] && cc[m.key].viz) || (cc[m.text] && cc[m.text].viz) || cfg.cellViz; if (cur === pv[0]) { op.selected = true; } });
+				var sp = el("input", null, row); sp.type = "checkbox"; sp.checked = inSel(sparkSel, m.key, m.text); txt(el("span", "tcx-mtag", row), "Spark");
+				var pi = el("input", null, row); pi.type = "checkbox"; pi.checked = inSel(pieSel, m.key, m.text); txt(el("span", "tcx-mtag", row), "Pasta");
+				measRows.push({ m: m, cb: cb, vsel: vsel, sp: sp, pi: pi });
+			})(f.measures[i]);
+		}
+
+		var ft = el("div", "tcx-dlg-f", dlg);
+		var apply = el("button", "tcx-btn", ft); txt(apply, "Uygula");
+		var cancel = el("button", "tcx-btn tcx-btn2", ft); txt(cancel, "Kapat"); cancel.onclick = close;
+		apply.onclick = function () {
+			var rows = [], meas = [], spark = [], pie = [], ncc = jget(cfg.columnConfig);
+			for (var k = 0; k < rowBoxes.length; k++) { if (rowBoxes[k].cb.checked) { rows.push(rowBoxes[k].key); } }
+			for (k = 0; k < measRows.length; k++) {
+				var mr = measRows[k]; if (mr.cb.checked) { meas.push(mr.m.key); }
+				var prev = ncc[mr.m.key] || ncc[mr.m.text] || {}; prev.viz = mr.vsel.value; ncc[mr.m.key] = prev;
+				if (mr.sp.checked) { spark.push(mr.m.key); }
+				if (mr.pi.checked) { pie.push(mr.m.key); }
+			}
+			cfg.rowDimensions = rows.join(","); cfg.columnDimension = colSelEl.value;
+			cfg.measureFilter = meas.join(","); cfg.sparkColumns = spark.join(","); cfg.pieColumns = pie.join(",");
+			cfg.columnConfig = JSON.stringify(ncc);
+			try { that.firePropertiesChanged(["rowDimensions", "columnDimension", "measureFilter", "sparkColumns", "pieColumns", "columnConfig"]); } catch (e) { }
+			close(); render();
+		};
+		function close() { if (mask.parentNode) { mask.parentNode.removeChild(mask); } }
+		function sec(p, t, sub) { var s = el("div", "tcx-sec", p); txt(el("div", "tcx-sec-t", s), t); if (sub) { txt(el("div", "tcx-sec-s", s), sub); } }
+		function rowItem(p, text, key, checked) { var r = el("label", "tcx-citem", p); var cb = el("input", null, r); cb.type = "checkbox"; cb.checked = checked; txt(el("span", null, r), text); return cb; }
 	}
 
 	function buildHead(table) {
@@ -203,7 +303,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 	}
 	function collect(row, measures) {
 		var out = [];
-		for (var m = 0; m < measures.length; m++) { var found = null; for (var c = 0; c < model.columns.length; c++) { if (model.columns[c].measure === measures[m]) { found = row.cells[model.columns[c].key]; break; } } out.push(found); }
+		for (var m = 0; m < measures.length; m++) { var found = null; for (var c = 0; c < model.columns.length; c++) { var col = model.columns[c]; if (col.measure === measures[m] || col.measureKey === measures[m] || col.label === measures[m]) { found = row.cells[col.key]; break; } } out.push(found); }
 		return out;
 	}
 	function pieTip(measures, vals) { var s = []; for (var i = 0; i < measures.length; i++) { s.push(measures[i] + ": " + (vals[i] == null ? "—" : vals[i])); } return s.join("  ·  "); }
@@ -214,18 +314,25 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 		var numeric = G.isNum(v);
 		var thr = matchThreshold(rc.thresholds, v);
 
-		if (rc.viz === "heat" && numeric) {
-			var st = rc.scope === "table" ? model.tableStats : col.stats, t = (st.max > st.min) ? (+v - st.min) / (st.max - st.min) : 0.5;
-			var bg = G.rampColor(rc.ramp, t); td.style.background = bg; td.style.color = G.contrast(bg);
-		}
+		function tNorm() { var st = rc.scope === "table" ? model.tableStats : col.stats; return (st.max > st.min) ? (+v - st.min) / (st.max - st.min) : 0.5; }
+
+		if (rc.viz === "heat" && numeric) { var bg = G.rampColor(rc.ramp, tNorm()); td.style.background = bg; td.style.color = G.contrast(bg); }
 		if (thr) { if (thr.bg) { td.style.background = thr.bg; td.style.color = thr.color || G.contrast(thr.bg); } else if (thr.color) { td.style.color = thr.color; } }
 
 		if (rc.viz === "bar" && numeric) {
 			var stb = rc.scope === "table" ? model.tableStats : col.stats, mx = Math.max(Math.abs(stb.min), Math.abs(stb.max)) || 1;
 			var wrap = el("div", "tcx-bar", td), tr2 = el("div", "tcx-bar-track", wrap);
 			var bar = el("div", "tcx-bar-fill", tr2); bar.style.width = Math.min(100, Math.abs(+v) / mx * 100) + "%";
-			bar.style.background = (+v < 0 ? cfg.negativeColor : rc.barColor);
+			bar.style.background = (+v < 0 ? cfg.negativeColor : (thr && thr.bg ? thr.bg : rc.barColor));
 			var lab = el("span", "tcx-bar-val", wrap); txt(lab, G.fmt(v, fmtOpts(rc)));
+		} else if (rc.viz === "dot" && numeric) {
+			var wrap2 = el("div", "tcx-dotwrap", td);
+			var dotc = (thr && thr.bg) ? thr.bg : ((thr && thr.color) ? thr.color : G.rampColor(rc.ramp, tNorm()));
+			var dot = el("span", "tcx-dot", wrap2); dot.style.background = dotc;
+			txt(el("span", null, wrap2), G.fmt(v, fmtOpts(rc)));
+		} else if (rc.viz === "pill" && numeric) {
+			var pillbg = (thr && thr.bg) ? thr.bg : G.rampColor(rc.ramp, tNorm());
+			var pill = el("span", "tcx-pill", td); pill.style.background = pillbg; pill.style.color = G.contrast(pillbg); txt(pill, G.fmt(v, fmtOpts(rc)));
 		} else {
 			var span = el("span", null, td); txt(span, G.fmt(v, fmtOpts(rc)));
 			if (rc.trend !== "none" && numeric) {
@@ -261,8 +368,9 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 	}
 
 	// ===================== interaction =====================
-	function selectRow(row) { if (!cfg.selectable) { return; } selKey = row.key; cfg.selectedRow = row.headers.join(" / "); cfg.selectedRowKey = row.key; cfg.selectedColumn = ""; cfg.selectedValue = ""; markSel(); that.firePropertiesChangedAndEvent(["selectedRow", "selectedRowKey", "selectedColumn", "selectedValue"], "onSelect"); }
-	function selectCell(row, col, v) { if (!cfg.selectable) { return; } selKey = row.key; cfg.selectedRow = row.headers.join(" / "); cfg.selectedRowKey = row.key; cfg.selectedColumn = col.label; cfg.selectedValue = (v == null ? "" : "" + v); markSel(); that.firePropertiesChangedAndEvent(["selectedRow", "selectedRowKey", "selectedColumn", "selectedValue"], "onSelect"); }
+	function fireEvt(name) { try { if (that.fireEvent) { that.fireEvent(name); } else { that.firePropertiesChangedAndEvent([], name); } } catch (e) { } }
+	function selectRow(row) { if (!cfg.selectable) { return; } selKey = row.key; cfg.selectedRow = row.headers.join(" / "); cfg.selectedRowKey = row.key; cfg.selectedColumn = ""; cfg.selectedValue = ""; markSel(); that.firePropertiesChangedAndEvent(["selectedRow", "selectedRowKey", "selectedColumn", "selectedValue"], "onSelect"); fireEvt("onClick"); }
+	function selectCell(row, col, v) { if (!cfg.selectable) { return; } selKey = row.key; cfg.selectedRow = row.headers.join(" / "); cfg.selectedRowKey = row.key; cfg.selectedColumn = col.label; cfg.selectedValue = (v == null ? "" : "" + v); markSel(); that.firePropertiesChangedAndEvent(["selectedRow", "selectedRowKey", "selectedColumn", "selectedValue"], "onSelect"); fireEvt("onClick"); }
 	function markSel() {
 		var trs = ui.scroll.getElementsByTagName ? ui.scroll.getElementsByTagName("tr") : [];
 		for (var i = 0; i < trs.length; i++) { var cn = (" " + (trs[i].className || "") + " ").replace(" tcx-selrow ", " "); trs[i].className = cn.replace(/^\s+|\s+$/g, ""); }
@@ -310,6 +418,21 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 			".tcx tbody tr:hover td{background:var(--hover)}.tcx tr.tcx-zebra td{background:var(--zebra)}" +
 			".tcx tr.tcx-selrow td{background:var(--sel) !important}" +
 			".tcx-cell{cursor:pointer}.tcx-tr{margin-left:6px;font-size:10px}" +
+			".tcx-btn2{background:transparent;color:var(--fg);border:1px solid var(--line)}" +
+			".tcx.gl-both td,.tcx.gl-both th{border-right:1px solid var(--line)}.tcx.gl-none td,.tcx.gl-none th{border-bottom:none}" +
+			".tcx.hu-off thead th{text-transform:none}" +
+			".tcx-dotwrap{display:flex;align-items:center;gap:7px;justify-content:flex-end}.tcx-dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}" +
+			".tcx-pill{display:inline-block;padding:2px 9px;border-radius:11px;font-weight:600;font-size:11px}" +
+			".tcx-mask{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(4,12,20,.55);z-index:20;display:flex;align-items:center;justify-content:center}" +
+			".tcx-dlg{width:520px;max-width:92%;max-height:88%;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}" +
+			".tcx-dlg-h{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;font-weight:700;border-bottom:1px solid var(--line);background:var(--head)}" +
+			".tcx-x{cursor:pointer;color:var(--sub)}.tcx-dlg-b{padding:8px 14px;overflow:auto}.tcx-dlg-f{display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--line);background:var(--head)}" +
+			".tcx-sec{margin:10px 0 4px}.tcx-sec-t{font-weight:700;font-size:12px}.tcx-sec-s{font-size:10px;color:var(--sub)}" +
+			".tcx-citem{display:inline-flex;align-items:center;gap:5px;margin:3px 14px 3px 0;font-size:12px;cursor:pointer}" +
+			".tcx-dlg-sel{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:5px}" +
+			".tcx-mrow{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--line);font-size:12px}.tcx-mname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tcx-mtag{color:var(--sub);font-size:10px;margin-right:2px}" +
+			".tcx-mini{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:5px;font-size:11px}" +
+			".tcx-empty-t{font-weight:700;margin-bottom:4px}.tcx-empty-s{font-size:12px;margin-bottom:6px}.tcx-empty-i{font-size:11px;color:var(--sub);margin-top:3px}" +
 			".tcx-bar{display:flex;align-items:center;gap:6px;justify-content:flex-end}.tcx-bar-track{flex:1;height:14px;background:rgba(127,150,170,.18);border-radius:3px;overflow:hidden;min-width:40px}.tcx-bar-fill{height:100%;border-radius:3px}.tcx-bar-val{min-width:42px;text-align:right}" +
 			".tcx tfoot td{position:sticky;bottom:0;background:var(--head);font-weight:700;border-top:2px solid var(--accent)}" +
 			".tcx-pager{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel);border-top:1px solid var(--line);font-size:12px}.tcx-pinfo{color:var(--sub);margin-right:auto}" +
@@ -322,7 +445,8 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 	// ===================== accessors =====================
 	function accessor(name) { that[name] = function (v) { if (v === undefined) { return cfg[name]; } cfg[name] = v; return that; }; }
 	var props = ["rowDimensions", "columnDimension", "measureFilter", "title", "subtitle", "theme", "density", "zebra", "stickyHeader",
-		"freezeFirstColumn", "showRowNumbers", "showToolbar", "showColumnTotals", "totalAggregation", "totalsLabel",
+		"freezeFirstColumn", "showRowNumbers", "showToolbar", "showFieldChooser", "accentColor", "gridLines", "headerUppercase",
+		"showColumnTotals", "totalAggregation", "totalsLabel",
 		"decimals", "unit", "thousandSep", "compact", "nullText", "cellViz", "heatRamp", "barColor", "negativeColor", "colorScope",
 		"thresholds", "columnConfig", "sparkColumns", "sparkType", "sparkColor", "sparkTitle", "pieColumns", "pieType", "pieTitle", "pieColors",
 		"sortable", "defaultSortColumn", "defaultSortDir", "searchable", "selectable", "exportable", "pageSize",

@@ -33,6 +33,14 @@ class com.tcdd.crosstab.Crosstab extends Component {
 	boolean getShowRowNumbers() {* return this.showRowNumbers; *}
 	void setShowToolbar(boolean value) {* this.showToolbar = value; *}
 	boolean getShowToolbar() {* return this.showToolbar; *}
+	void setShowFieldChooser(boolean value) {* this.showFieldChooser = value; *}
+	boolean getShowFieldChooser() {* return this.showFieldChooser; *}
+	void setAccentColor(String value) {* this.accentColor = value; *}
+	String getAccentColor() {* return this.accentColor; *}
+	void setGridLines(/* rows|both|none */ String value) {* this.gridLines = value; *}
+	String getGridLines() {* return this.gridLines; *}
+	void setHeaderUppercase(boolean value) {* this.headerUppercase = value; *}
+	boolean getHeaderUppercase() {* return this.headerUppercase; *}
 	void setShowColumnTotals(boolean value) {* this.showColumnTotals = value; *}
 	boolean getShowColumnTotals() {* return this.showColumnTotals; *}
 	void setTotalAggregation(/* sum|avg|min|max */ String value) {* this.totalAggregation = value; *}

@@ -14,9 +14,9 @@
 
 		<!-- 1 - VERİ -->
 		<property id="data" title="Data Source" type="ResultCellList" group="1 - Veri" tooltip="Veri kaynağı: satırlarda boyut(lar), sütunlarda ölçü(ler). İsteğe bağlı bir sütun boyutu da olabilir." />
-		<property id="rowDimensions" title="Row Dimensions (technical keys, csv)" type="String" group="1 - Veri" tooltip="Satır başlığı olacak boyutların teknik adları (virgülle, sırayla). Boş = tüm ölçü-olmayan boyutlar." />
-		<property id="columnDimension" title="Column Dimension (technical key)" type="String" group="1 - Veri" tooltip="İsteğe bağlı: bu boyutun üyeleri her ölçü için sütun grubuna dönüşür (çapraz tablo). Boş = sadece ölçüler sütun." />
-		<property id="measureFilter" title="Measures (csv, blank=all)" type="String" group="1 - Veri" tooltip="Gösterilecek ölçüler (ad veya teknik, virgülle, sırayla). Boş = tüm ölçüler." />
+		<property id="rowDimensions" title="Row Dimensions" type="String" group="1 - Veri" tooltip="Satır başlığı olacak boyutlar. EN KOLAYI: tuvalde ⚙ Alanlar düğmesinden seçin (teknik ad yazmaya gerek yok). Elle: GÖRÜNEN AD veya teknik ad, virgülle. Boş = tüm boyutlar." />
+		<property id="columnDimension" title="Column Dimension" type="String" group="1 - Veri" tooltip="İsteğe bağlı çapraz tablo: bu boyutun üyeleri her ölçü için sütuna açılır. ⚙ Alanlar'dan seçilebilir. Boş = sadece ölçüler sütun." />
+		<property id="measureFilter" title="Measures" type="String" group="1 - Veri" tooltip="Gösterilecek ölçüler. ⚙ Alanlar'dan seçin; veya GÖRÜNEN AD/teknik ad, virgülle, sırayla. Boş = tüm ölçüler." />
 
 		<!-- 2 - GÖRÜNÜM -->
 		<property id="title" title="Title" type="String" group="2 - Görünüm" tooltip="Üst başlık." />
@@ -27,7 +27,11 @@
 		<property id="stickyHeader" title="Sticky Header" type="boolean" group="2 - Görünüm" tooltip="Kaydırınca başlık üstte sabit kalsın." />
 		<property id="freezeFirstColumn" title="Freeze First Column" type="boolean" group="2 - Görünüm" tooltip="İlk satır-başlık sütununu solda dondur." />
 		<property id="showRowNumbers" title="Show Row Numbers" type="boolean" group="2 - Görünüm" tooltip="Satır numarası sütunu göster." />
-		<property id="showToolbar" title="Show Toolbar" type="boolean" group="2 - Görünüm" tooltip="Başlık/arama/CSV araç çubuğu." />
+		<property id="showToolbar" title="Show Toolbar" type="boolean" group="2 - Görünüm" tooltip="Başlık/arama/Alanlar/CSV araç çubuğu." />
+		<property id="showFieldChooser" title="Show Field Chooser (⚙)" type="boolean" group="2 - Görünüm" tooltip="Araç çubuğunda ⚙ Alanlar düğmesi: datasource boyut/ölçülerini görünen adlarıyla onay kutusundan seç (teknik ad yazmadan)." />
+		<property id="accentColor" title="Accent Color" type="String" group="2 - Görünüm" tooltip="Vurgu rengi (#rrggbb). Boş = tema rengi." />
+		<property id="gridLines" title="Grid Lines (rows/both/none)" type="String" group="2 - Görünüm" tooltip="Tablo çizgileri: rows (yatay), both (yatay+dikey), none." />
+		<property id="headerUppercase" title="Header Uppercase" type="boolean" group="2 - Görünüm" tooltip="Sütun başlıklarını BÜYÜK harf göster." />
 		<property id="showColumnTotals" title="Show Column Totals" type="boolean" group="2 - Görünüm" tooltip="Altta toplam (footer) satırı göster." />
 		<property id="totalAggregation" title="Totals Aggregation (sum/avg/min/max)" type="String" group="2 - Görünüm" tooltip="Toplam satırının hesaplama yöntemi." />
 		<property id="totalsLabel" title="Totals Label" type="String" group="2 - Görünüm" tooltip="Toplam satırı etiketi." />
@@ -40,7 +44,7 @@
 		<property id="nullText" title="Empty/Null Text" type="String" group="3 - Biçim" tooltip="Boş hücre metni (ör. —)." />
 
 		<!-- 4 - HÜCRE GÖRSELLEŞTİRME -->
-		<property id="cellViz" title="Cell Viz (value/bar/heat)" type="String" group="4 - Hücre" tooltip="Varsayılan hücre tipi: value (sayı), bar (hücre içi çubuk), heat (arka plan renk skalası). Sütun bazında columnConfig ile ezilir." />
+		<property id="cellViz" title="Cell Viz (value/bar/heat/dot/pill)" type="String" group="4 - Hücre" tooltip="Varsayılan hücre tipi: value (sayı), bar (hücre içi çubuk), heat (arka plan renk skalası), dot (renkli nokta+değer), pill (renkli etiket). ⚙ Alanlar veya columnConfig ile sütun bazında ezilir." />
 		<property id="heatRamp" title="Heat Ramp" type="String" group="4 - Hücre" tooltip="Isı renklendirmesi rampası: blue, heat, traffic, rdylgn, redblue, viridis…" />
 		<property id="barColor" title="Bar Color" type="String" group="4 - Hücre" tooltip="Veri-çubuğu rengi (#rrggbb)." />
 		<property id="negativeColor" title="Negative Bar Color" type="String" group="4 - Hücre" tooltip="Negatif değer çubuğu rengi." />
@@ -79,6 +83,7 @@
 
 		<!-- 10 - OLAYLAR -->
 		<property id="onSelect" title="on Select" type="ScriptText" group="10 - Olaylar" tooltip="Satır/hücre seçilince çalışır; selectedRow/RowKey/Column/Value güncellenir." />
+		<property id="onClick" title="on Click" type="ScriptText" group="10 - Olaylar" tooltip="Bir satıra/hücreye tıklanınca çalışır (onSelect ile birlikte)." />
 
 		<initialization>
 			<defaultValue property="WIDTH">900</defaultValue>
@@ -90,6 +95,9 @@
 			<defaultValue property="freezeFirstColumn">true</defaultValue>
 			<defaultValue property="showRowNumbers">false</defaultValue>
 			<defaultValue property="showToolbar">true</defaultValue>
+			<defaultValue property="showFieldChooser">true</defaultValue>
+			<defaultValue property="gridLines">rows</defaultValue>
+			<defaultValue property="headerUppercase">true</defaultValue>
 			<defaultValue property="showColumnTotals">false</defaultValue>
 			<defaultValue property="totalAggregation">sum</defaultValue>
 			<defaultValue property="totalsLabel">Toplam</defaultValue>

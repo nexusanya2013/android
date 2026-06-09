@@ -137,10 +137,12 @@ if (!window.TCDDGrid) {
 			var colKeyMap = {};
 			for (var mi = 0; mi < mIdx.length; mi++) {
 				for (var ci = 0; ci < colMembers.length; ci++) {
-					var mName = measures[mIdx[mi]].text != null ? measures[mIdx[mi]].text : measures[mIdx[mi]].key;
+					var mm = measures[mIdx[mi]];
+					var mName = mm.text != null ? mm.text : mm.key;
+					var mKey = mm.key != null ? ("" + mm.key) : mName;
 					var label = colDim >= 0 ? (mIdx.length > 1 ? mName + " · " + colMembers[ci].text : colMembers[ci].text) : mName;
 					var key = "c_" + mIdx[mi] + "_" + ci;
-					out.columns.push({ key: key, label: label, measure: mName, measureIdx: mIdx[mi], colIdx: colDim >= 0 ? ci : -1 });
+					out.columns.push({ key: key, label: label, measure: mName, measureKey: mKey, measureIdx: mIdx[mi], colIdx: colDim >= 0 ? ci : -1 });
 					colKeyMap[mIdx[mi] + "|" + (colDim >= 0 ? ci : -1)] = key;
 				}
 			}
