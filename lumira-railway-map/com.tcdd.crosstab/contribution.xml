@@ -8,6 +8,7 @@
 -->
 <sdkExtension xmlns="http://www.sap.com/bi/zen/sdk" id="com.tcdd.crosstab" title="TCDD Crosstab Grid" version="1.0" vendor="TCDD">
 	<component id="Crosstab" title="Crosstab Grid" group="TcddMaps" icon="res/icon.png" handlerType="div" databound="true" modes="commons m"
+		propertyEditorHandler="res/aps/aps.html"
 		tooltip="Modern veri tablosu: hücre içi bar, ısı renklendirme, trend okları, satır içi sparkline ve pasta/donut, sıralama, arama, total, CSV.">
 		<jsInclude>res/js/crosstab-core.js</jsInclude>
 		<jsInclude>res/js/component.js</jsInclude>
@@ -17,6 +18,7 @@
 		<property id="rowDimensions" title="Row Dimensions" type="String" group="1 - Veri" tooltip="Satır başlığı olacak boyutlar. EN KOLAYI: tuvalde ⚙ Alanlar düğmesinden seçin (teknik ad yazmaya gerek yok). Elle: GÖRÜNEN AD veya teknik ad, virgülle. Boş = tüm boyutlar." />
 		<property id="columnDimension" title="Column Dimension" type="String" group="1 - Veri" tooltip="İsteğe bağlı çapraz tablo: bu boyutun üyeleri her ölçü için sütuna açılır. ⚙ Alanlar'dan seçilebilir. Boş = sadece ölçüler sütun." />
 		<property id="measureFilter" title="Measures" type="String" group="1 - Veri" tooltip="Gösterilecek ölçüler. ⚙ Alanlar'dan seçin; veya GÖRÜNEN AD/teknik ad, virgülle, sırayla. Boş = tüm ölçüler." />
+		<property id="availableFields" title="Available Fields (auto)" type="ScriptText" group="1 - Veri" tooltip="Otomatik doldurulur — APS (özellik paneli) alan listesini buradan okur. Elle değiştirmeyin." />
 
 		<!-- 2 - GÖRÜNÜM -->
 		<property id="title" title="Title" type="String" group="2 - Görünüm" tooltip="Üst başlık." />

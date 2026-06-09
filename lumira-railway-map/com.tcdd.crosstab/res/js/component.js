@@ -12,7 +12,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 	var that = this, G = null;
 	var cfg = {
 		// data
-		rowDimensions: "", columnDimension: "", measureFilter: "",
+		rowDimensions: "", columnDimension: "", measureFilter: "", availableFields: "",
 		// chrome
 		title: "", subtitle: "", theme: "dark", density: "normal", zebra: true, stickyHeader: true,
 		freezeFirstColumn: true, showRowNumbers: false, showToolbar: true,
@@ -34,7 +34,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 		// outputs
 		selectedRow: "", selectedRowKey: "", selectedColumn: "", selectedValue: ""
 	};
-	var meta = null, ds = null, model = null, ui = {}, sortState = null, query = "", page = 0, selKey = null;
+	var meta = null, ds = null, model = null, ui = {}, sortState = null, query = "", page = 0, selKey = null, _lastAF = "";
 
 	function el(t, c, p) { var e = document.createElement(t); if (c) { e.className = c; } if (p) { p.appendChild(e); } return e; }
 	function txt(n, s) { n.appendChild(document.createTextNode(s == null ? "" : "" + s)); return n; }
@@ -54,7 +54,16 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 		ui.scroll = el("div", "tcx-scroll", ui.root);
 		ui.pager = el("div", "tcx-pager", ui.root);
 	};
-	this.afterUpdate = function () { if (!G) { return; } applyTheme(); render(); };
+	this.afterUpdate = function () { if (!G) { return; } applyTheme(); render(); publishFields(); };
+
+	// publish the bound data source's fields so the APS (design-time editor) can list them
+	function publishFields() {
+		var f = model && model.fields; if (!f || !f.hasMeta) { return; }
+		var obj = { dims: f.dimList, measures: [] }, seen = {};
+		for (var i = 0; i < f.measures.length; i++) { var m = f.measures[i]; if (!seen[m.key]) { seen[m.key] = 1; obj.measures.push({ key: m.key, text: m.text }); } }
+		var s = JSON.stringify(obj);
+		if (s !== _lastAF) { _lastAF = s; cfg.availableFields = s; try { that.firePropertiesChanged(["availableFields"]); } catch (e) { } }
+	}
 
 	function applyTheme() {
 		ui.root.className = "tcx tcx-" + (cfg.theme === "light" ? "light" : "dark") + " d-" + (cfg.density || "normal") +
@@ -444,7 +453,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.crosstab.Crosstab", function (
 
 	// ===================== accessors =====================
 	function accessor(name) { that[name] = function (v) { if (v === undefined) { return cfg[name]; } cfg[name] = v; return that; }; }
-	var props = ["rowDimensions", "columnDimension", "measureFilter", "title", "subtitle", "theme", "density", "zebra", "stickyHeader",
+	var props = ["rowDimensions", "columnDimension", "measureFilter", "availableFields", "title", "subtitle", "theme", "density", "zebra", "stickyHeader",
 		"freezeFirstColumn", "showRowNumbers", "showToolbar", "showFieldChooser", "accentColor", "gridLines", "headerUppercase",
 		"showColumnTotals", "totalAggregation", "totalsLabel",
 		"decimals", "unit", "thousandSep", "compact", "nullText", "cellViz", "heatRamp", "barColor", "negativeColor", "colorScope",

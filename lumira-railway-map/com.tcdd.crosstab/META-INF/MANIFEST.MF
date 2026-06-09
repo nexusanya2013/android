@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Bundle-SymbolicName: com.tcdd.crosstab;singleton:=true
 Bundle-Name: TCDD Crosstab Grid
-Bundle-Version: 1.0.0.202606091648
+Bundle-Version: 1.0.0.202606091703
 Require-Bundle: com.sap.ip.bi.zen.rt.components.sdk.eclipse
 Bundle-ManifestVersion: 2
 Bundle-Vendor: TCDD
