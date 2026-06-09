@@ -1,25 +1,22 @@
 #!/usr/bin/env bash
-# Packages the TCDD Railway Map SDK component into a deployable Lumira Designer
+# Packages each TCDD SDK component (com.tcdd.*) into a deployable Lumira Designer
 # extension JAR (same layout as the SAP sample extensions).
+#   usage: ./build.sh            -> builds all com.tcdd.* plugins
+#          ./build.sh com.tcdd.crosstab   -> builds one
 set -euo pipefail
-
-PLUGIN_DIR="com.tcdd.railmap"
-BSN="com.tcdd.railmap"
-VERSION="1.0.0.$(date +%Y%m%d%H%M)"
-OUT_DIR="dist"
-JAR="${OUT_DIR}/${BSN}_${VERSION}.jar"
-
 cd "$(dirname "$0")"
-mkdir -p "${OUT_DIR}"
+OUT_DIR="dist"; mkdir -p "${OUT_DIR}"
+VERSION="1.0.0.$(date +%Y%m%d%H%M)"
 
-# stamp the manifest version
-sed -i.bak -E "s/^Bundle-Version:.*/Bundle-Version: ${VERSION}/" "${PLUGIN_DIR}/META-INF/MANIFEST.MF"
-rm -f "${PLUGIN_DIR}/META-INF/MANIFEST.MF.bak"
+build_one() {
+  local DIR="$1" JAR="${OUT_DIR}/$1_${VERSION}.jar"
+  [ -d "${DIR}" ] || { echo "skip: ${DIR} yok"; return; }
+  sed -i.bak -E "s/^Bundle-Version:.*/Bundle-Version: ${VERSION}/" "${DIR}/META-INF/MANIFEST.MF"
+  rm -f "${DIR}/META-INF/MANIFEST.MF.bak"
+  rm -f "${OUT_DIR}/$1_"*.jar
+  ( cd "${DIR}" && zip -q -r -X "../${JAR}" META-INF plugin.xml contribution.xml contribution.ztl res -x '*.DS_Store' )
+  echo "Built ${JAR}"
+}
 
-rm -f "${JAR}"
-( cd "${PLUGIN_DIR}" && zip -q -r -X "../${JAR}" \
-    META-INF plugin.xml contribution.xml contribution.ztl res \
-    -x '*.DS_Store' )
-
-echo "Built ${JAR}"
-unzip -l "${JAR}"
+if [ "$#" -ge 1 ]; then build_one "$1"; else for d in com.tcdd.*; do [ -d "$d" ] && build_one "$d"; done; fi
+ls -1 "${OUT_DIR}"/*.jar

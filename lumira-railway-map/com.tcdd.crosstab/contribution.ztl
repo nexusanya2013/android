@@ -1,0 +1,120 @@
+/*
+ * TCDD Crosstab Grid - BIAL scripting interface
+ * Property accessors + runtime helpers, e.g.
+ *   CROSSTAB_1.sortBy("Planlanan Mesafe", "desc");
+ *   CROSSTAB_1.setSearch("Doğançay");
+ */
+class com.tcdd.crosstab.Crosstab extends Component {
+
+	/* ---- data ---- */
+	void setRowDimensions(String value) {* this.rowDimensions = value; *}
+	String getRowDimensions() {* return this.rowDimensions; *}
+	void setColumnDimension(String value) {* this.columnDimension = value; *}
+	String getColumnDimension() {* return this.columnDimension; *}
+	void setMeasureFilter(String value) {* this.measureFilter = value; *}
+	String getMeasureFilter() {* return this.measureFilter; *}
+
+	/* ---- görünüm ---- */
+	void setTitle(String value) {* this.title = value; *}
+	String getTitle() {* return this.title; *}
+	void setSubtitle(String value) {* this.subtitle = value; *}
+	String getSubtitle() {* return this.subtitle; *}
+	void setTheme(/* dark|light */ String value) {* this.theme = value; *}
+	String getTheme() {* return this.theme; *}
+	void setDensity(/* compact|normal|comfortable */ String value) {* this.density = value; *}
+	String getDensity() {* return this.density; *}
+	void setZebra(boolean value) {* this.zebra = value; *}
+	boolean getZebra() {* return this.zebra; *}
+	void setStickyHeader(boolean value) {* this.stickyHeader = value; *}
+	boolean getStickyHeader() {* return this.stickyHeader; *}
+	void setFreezeFirstColumn(boolean value) {* this.freezeFirstColumn = value; *}
+	boolean getFreezeFirstColumn() {* return this.freezeFirstColumn; *}
+	void setShowRowNumbers(boolean value) {* this.showRowNumbers = value; *}
+	boolean getShowRowNumbers() {* return this.showRowNumbers; *}
+	void setShowToolbar(boolean value) {* this.showToolbar = value; *}
+	boolean getShowToolbar() {* return this.showToolbar; *}
+	void setShowColumnTotals(boolean value) {* this.showColumnTotals = value; *}
+	boolean getShowColumnTotals() {* return this.showColumnTotals; *}
+	void setTotalAggregation(/* sum|avg|min|max */ String value) {* this.totalAggregation = value; *}
+	String getTotalAggregation() {* return this.totalAggregation; *}
+	void setTotalsLabel(String value) {* this.totalsLabel = value; *}
+	String getTotalsLabel() {* return this.totalsLabel; *}
+
+	/* ---- biçim ---- */
+	void setDecimals(int value) {* this.decimals = value; *}
+	int getDecimals() {* return this.decimals; *}
+	void setUnit(String value) {* this.unit = value; *}
+	String getUnit() {* return this.unit; *}
+	void setThousandSep(boolean value) {* this.thousandSep = value; *}
+	boolean getThousandSep() {* return this.thousandSep; *}
+	void setCompact(boolean value) {* this.compact = value; *}
+	boolean getCompact() {* return this.compact; *}
+	void setNullText(String value) {* this.nullText = value; *}
+	String getNullText() {* return this.nullText; *}
+
+	/* ---- hücre görselleştirme ---- */
+	void setCellViz(/* value|bar|heat */ String value) {* this.cellViz = value; *}
+	String getCellViz() {* return this.cellViz; *}
+	void setHeatRamp(String value) {* this.heatRamp = value; *}
+	String getHeatRamp() {* return this.heatRamp; *}
+	void setBarColor(String value) {* this.barColor = value; *}
+	String getBarColor() {* return this.barColor; *}
+	void setNegativeColor(String value) {* this.negativeColor = value; *}
+	String getNegativeColor() {* return this.negativeColor; *}
+	void setColorScope(/* column|table */ String value) {* this.colorScope = value; *}
+	String getColorScope() {* return this.colorScope; *}
+
+	/* ---- koşullu (JSON) ---- */
+	void setThresholds(String value) {* this.thresholds = value; *}
+	String getThresholds() {* return this.thresholds; *}
+	void setColumnConfig(String value) {* this.columnConfig = value; *}
+	String getColumnConfig() {* return this.columnConfig; *}
+
+	/* ---- sparkline ---- */
+	void setSparkColumns(String value) {* this.sparkColumns = value; *}
+	String getSparkColumns() {* return this.sparkColumns; *}
+	void setSparkType(/* line|area|bar */ String value) {* this.sparkType = value; *}
+	String getSparkType() {* return this.sparkType; *}
+	void setSparkColor(String value) {* this.sparkColor = value; *}
+	String getSparkColor() {* return this.sparkColor; *}
+	void setSparkTitle(String value) {* this.sparkTitle = value; *}
+	String getSparkTitle() {* return this.sparkTitle; *}
+
+	/* ---- pasta / donut ---- */
+	void setPieColumns(String value) {* this.pieColumns = value; *}
+	String getPieColumns() {* return this.pieColumns; *}
+	void setPieType(/* pie|donut */ String value) {* this.pieType = value; *}
+	String getPieType() {* return this.pieType; *}
+	void setPieTitle(String value) {* this.pieTitle = value; *}
+	String getPieTitle() {* return this.pieTitle; *}
+	void setPieColors(String value) {* this.pieColors = value; *}
+	String getPieColors() {* return this.pieColors; *}
+
+	/* ---- etkileşim ---- */
+	void setSortable(boolean value) {* this.sortable = value; *}
+	boolean getSortable() {* return this.sortable; *}
+	void setDefaultSortColumn(String value) {* this.defaultSortColumn = value; *}
+	String getDefaultSortColumn() {* return this.defaultSortColumn; *}
+	void setDefaultSortDir(/* asc|desc */ String value) {* this.defaultSortDir = value; *}
+	String getDefaultSortDir() {* return this.defaultSortDir; *}
+	void setSearchable(boolean value) {* this.searchable = value; *}
+	boolean getSearchable() {* return this.searchable; *}
+	void setSelectable(boolean value) {* this.selectable = value; *}
+	boolean getSelectable() {* return this.selectable; *}
+	void setExportable(boolean value) {* this.exportable = value; *}
+	boolean getExportable() {* return this.exportable; *}
+	void setPageSize(int value) {* this.pageSize = value; *}
+	int getPageSize() {* return this.pageSize; *}
+
+	/* ---- seçim (çıktı) ---- */
+	String getSelectedRow() {* return this.getSelectedRow(); *}
+	String getSelectedRowKey() {* return this.selectedRowKey; *}
+	String getSelectedColumn() {* return this.selectedColumn; *}
+	String getSelectedValue() {* return this.getSelectedValue(); *}
+
+	/* ---- çalışma anı metotları ---- */
+	void clearSelection() {* this.clearSelection(); *}
+	void setSearch(String query) {* this.setSearch(query); *}
+	void sortBy(/* measure */ String measure, /* asc|desc */ String dir) {* this.sortBy(measure, dir); *}
+	String exportCSV() {* return this.exportCSV(); *}
+}

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TCDD Crosstab Grid - SAP Lumira Designer 2.4 SDK component
+  Modern, dependency-free data grid: in-cell data bars, conditional heat
+  colours, trend arrows, per-row sparkline (line/area/bar) and pie/donut
+  columns, sorting, search, totals, CSV export, light/dark themes.
+  Every property carries a Turkish tooltip.
+-->
+<sdkExtension xmlns="http://www.sap.com/bi/zen/sdk" id="com.tcdd.crosstab" title="TCDD Crosstab Grid" version="1.0" vendor="TCDD">
+	<component id="Crosstab" title="Crosstab Grid" group="TcddMaps" icon="res/icon.png" handlerType="div" databound="true" modes="commons m"
+		tooltip="Modern veri tablosu: hücre içi bar, ısı renklendirme, trend okları, satır içi sparkline ve pasta/donut, sıralama, arama, total, CSV.">
+		<jsInclude>res/js/crosstab-core.js</jsInclude>
+		<jsInclude>res/js/component.js</jsInclude>
+
+		<!-- 1 - VERİ -->
+		<property id="data" title="Data Source" type="ResultCellList" group="1 - Veri" tooltip="Veri kaynağı: satırlarda boyut(lar), sütunlarda ölçü(ler). İsteğe bağlı bir sütun boyutu da olabilir." />
+		<property id="rowDimensions" title="Row Dimensions (technical keys, csv)" type="String" group="1 - Veri" tooltip="Satır başlığı olacak boyutların teknik adları (virgülle, sırayla). Boş = tüm ölçü-olmayan boyutlar." />
+		<property id="columnDimension" title="Column Dimension (technical key)" type="String" group="1 - Veri" tooltip="İsteğe bağlı: bu boyutun üyeleri her ölçü için sütun grubuna dönüşür (çapraz tablo). Boş = sadece ölçüler sütun." />
+		<property id="measureFilter" title="Measures (csv, blank=all)" type="String" group="1 - Veri" tooltip="Gösterilecek ölçüler (ad veya teknik, virgülle, sırayla). Boş = tüm ölçüler." />
+
+		<!-- 2 - GÖRÜNÜM -->
+		<property id="title" title="Title" type="String" group="2 - Görünüm" tooltip="Üst başlık." />
+		<property id="subtitle" title="Subtitle" type="String" group="2 - Görünüm" tooltip="Başlık altı metin." />
+		<property id="theme" title="Theme (dark/light)" type="String" group="2 - Görünüm" tooltip="Renk teması." />
+		<property id="density" title="Density (compact/normal/comfortable)" type="String" group="2 - Görünüm" tooltip="Satır yoğunluğu / hücre boşluğu." />
+		<property id="zebra" title="Zebra Rows" type="boolean" group="2 - Görünüm" tooltip="Bir satır atlamalı arka plan." />
+		<property id="stickyHeader" title="Sticky Header" type="boolean" group="2 - Görünüm" tooltip="Kaydırınca başlık üstte sabit kalsın." />
+		<property id="freezeFirstColumn" title="Freeze First Column" type="boolean" group="2 - Görünüm" tooltip="İlk satır-başlık sütununu solda dondur." />
+		<property id="showRowNumbers" title="Show Row Numbers" type="boolean" group="2 - Görünüm" tooltip="Satır numarası sütunu göster." />
+		<property id="showToolbar" title="Show Toolbar" type="boolean" group="2 - Görünüm" tooltip="Başlık/arama/CSV araç çubuğu." />
+		<property id="showColumnTotals" title="Show Column Totals" type="boolean" group="2 - Görünüm" tooltip="Altta toplam (footer) satırı göster." />
+		<property id="totalAggregation" title="Totals Aggregation (sum/avg/min/max)" type="String" group="2 - Görünüm" tooltip="Toplam satırının hesaplama yöntemi." />
+		<property id="totalsLabel" title="Totals Label" type="String" group="2 - Görünüm" tooltip="Toplam satırı etiketi." />
+
+		<!-- 3 - BİÇİM -->
+		<property id="decimals" title="Decimals (-1=auto)" type="int" group="3 - Biçim" tooltip="Ondalık basamak. -1 = otomatik." />
+		<property id="unit" title="Unit" type="String" group="3 - Biçim" tooltip="Değer birimi (ör. km, dk)." />
+		<property id="thousandSep" title="Thousand Separator" type="boolean" group="3 - Biçim" tooltip="Binlik ayırıcı." />
+		<property id="compact" title="Compact (B/M/Mr)" type="boolean" group="3 - Biçim" tooltip="Büyük sayıları kısalt (1.2 M gibi)." />
+		<property id="nullText" title="Empty/Null Text" type="String" group="3 - Biçim" tooltip="Boş hücre metni (ör. —)." />
+
+		<!-- 4 - HÜCRE GÖRSELLEŞTİRME -->
+		<property id="cellViz" title="Cell Viz (value/bar/heat)" type="String" group="4 - Hücre" tooltip="Varsayılan hücre tipi: value (sayı), bar (hücre içi çubuk), heat (arka plan renk skalası). Sütun bazında columnConfig ile ezilir." />
+		<property id="heatRamp" title="Heat Ramp" type="String" group="4 - Hücre" tooltip="Isı renklendirmesi rampası: blue, heat, traffic, rdylgn, redblue, viridis…" />
+		<property id="barColor" title="Bar Color" type="String" group="4 - Hücre" tooltip="Veri-çubuğu rengi (#rrggbb)." />
+		<property id="negativeColor" title="Negative Bar Color" type="String" group="4 - Hücre" tooltip="Negatif değer çubuğu rengi." />
+		<property id="colorScope" title="Color Scope (column/table)" type="String" group="4 - Hücre" tooltip="Bar/ısı ölçeklemesi sütun bazında mı tablo bazında mı?" />
+
+		<!-- 5 - KOŞULLU -->
+		<property id="thresholds" title="Thresholds (JSON)" type="ScriptText" group="5 - Koşullu" tooltip="Tüm sayısal hücrelere uygulanır. Operatörler: &gt; &gt;= &lt; &lt;= == != between. Örn: [{op:'&lt;',value:50,color:'#ff6b6b'},{op:'between',value:50,value2:80,bg:'#5a4a2a'},{op:'&gt;=',value:80,bg:'#2e5a3a'}]" />
+		<property id="columnConfig" title="Per-column Config (JSON)" type="ScriptText" group="5 - Koşullu" tooltip="Sütun bazında ayar. Örn: {'Yük Ort. Hız Gidiş':{viz:'heat',ramp:'rdylgn',trend:'prev',trendGood:'up'},'Planlanan Mesafe':{viz:'bar',decimals:0,unit:'km'}}" />
+
+		<!-- 6 - SPARKLINE -->
+		<property id="sparkColumns" title="Sparkline Measures (csv)" type="String" group="6 - Sparkline" tooltip="Her satırda mini grafik çizilecek ölçüler (sırayla, virgülle). Boş = sparkline sütunu yok." />
+		<property id="sparkType" title="Sparkline Type (line/area/bar)" type="String" group="6 - Sparkline" tooltip="Satır içi grafik tipi." />
+		<property id="sparkColor" title="Sparkline Color" type="String" group="6 - Sparkline" tooltip="Sparkline rengi." />
+		<property id="sparkTitle" title="Sparkline Column Title" type="String" group="6 - Sparkline" tooltip="Sparkline sütun başlığı." />
+
+		<!-- 7 - PASTA / DONUT -->
+		<property id="pieColumns" title="Pie/Donut Measures (csv)" type="String" group="7 - Pasta/Donut" tooltip="Her satırda pasta/donut için ölçüler (oranlanır). Boş = pasta sütunu yok." />
+		<property id="pieType" title="Pie Type (pie/donut)" type="String" group="7 - Pasta/Donut" tooltip="Pasta veya halka (donut)." />
+		<property id="pieTitle" title="Pie Column Title" type="String" group="7 - Pasta/Donut" tooltip="Pasta/donut sütun başlığı." />
+		<property id="pieColors" title="Pie Colors (csv)" type="String" group="7 - Pasta/Donut" tooltip="Dilim renkleri (virgülle, #rrggbb). Boş = otomatik palet." />
+
+		<!-- 8 - ETKİLEŞİM -->
+		<property id="sortable" title="Sortable" type="boolean" group="8 - Etkileşim" tooltip="Başlığa tıklayarak sırala." />
+		<property id="defaultSortColumn" title="Default Sort (measure)" type="String" group="8 - Etkileşim" tooltip="Açılışta sıralanacak ölçü adı." />
+		<property id="defaultSortDir" title="Default Sort Dir (asc/desc)" type="String" group="8 - Etkileşim" tooltip="Varsayılan sıralama yönü." />
+		<property id="searchable" title="Searchable" type="boolean" group="8 - Etkileşim" tooltip="Arama kutusu (satır başlık + değer)." />
+		<property id="selectable" title="Selectable" type="boolean" group="8 - Etkileşim" tooltip="Satır/hücre seçimi + onSelect olayı." />
+		<property id="exportable" title="CSV Export" type="boolean" group="8 - Etkileşim" tooltip="CSV dışa aktarım düğmesi." />
+		<property id="pageSize" title="Page Size (0=all)" type="int" group="8 - Etkileşim" tooltip="Sayfa başına satır (0 = tümü, sayfalama yok)." />
+
+		<!-- 9 - SEÇİM (çıktı) -->
+		<property id="selectedRow" title="Selected Row" type="String" group="9 - Seçim" tooltip="Seçilen satırın başlıkları (getSelectedRow)." />
+		<property id="selectedRowKey" title="Selected Row Key" type="String" group="9 - Seçim" tooltip="Seçilen satırın iç anahtarı." />
+		<property id="selectedColumn" title="Selected Column" type="String" group="9 - Seçim" tooltip="Tıklanan hücrenin sütun başlığı." />
+		<property id="selectedValue" title="Selected Value" type="String" group="9 - Seçim" tooltip="Tıklanan hücrenin değeri." />
+
+		<!-- 10 - OLAYLAR -->
+		<property id="onSelect" title="on Select" type="ScriptText" group="10 - Olaylar" tooltip="Satır/hücre seçilince çalışır; selectedRow/RowKey/Column/Value güncellenir." />
+
+		<initialization>
+			<defaultValue property="WIDTH">900</defaultValue>
+			<defaultValue property="HEIGHT">360</defaultValue>
+			<defaultValue property="theme">dark</defaultValue>
+			<defaultValue property="density">normal</defaultValue>
+			<defaultValue property="zebra">true</defaultValue>
+			<defaultValue property="stickyHeader">true</defaultValue>
+			<defaultValue property="freezeFirstColumn">true</defaultValue>
+			<defaultValue property="showRowNumbers">false</defaultValue>
+			<defaultValue property="showToolbar">true</defaultValue>
+			<defaultValue property="showColumnTotals">false</defaultValue>
+			<defaultValue property="totalAggregation">sum</defaultValue>
+			<defaultValue property="totalsLabel">Toplam</defaultValue>
+			<defaultValue property="decimals">-1</defaultValue>
+			<defaultValue property="thousandSep">true</defaultValue>
+			<defaultValue property="compact">false</defaultValue>
+			<defaultValue property="nullText">—</defaultValue>
+			<defaultValue property="cellViz">value</defaultValue>
+			<defaultValue property="heatRamp">blue</defaultValue>
+			<defaultValue property="barColor">#37a3d6</defaultValue>
+			<defaultValue property="negativeColor">#e15759</defaultValue>
+			<defaultValue property="colorScope">column</defaultValue>
+			<defaultValue property="sparkType">line</defaultValue>
+			<defaultValue property="sparkColor">#37a3d6</defaultValue>
+			<defaultValue property="sparkTitle">Trend</defaultValue>
+			<defaultValue property="pieType">donut</defaultValue>
+			<defaultValue property="pieTitle">Dağılım</defaultValue>
+			<defaultValue property="sortable">true</defaultValue>
+			<defaultValue property="defaultSortDir">desc</defaultValue>
+			<defaultValue property="searchable">true</defaultValue>
+			<defaultValue property="selectable">true</defaultValue>
+			<defaultValue property="exportable">true</defaultValue>
+			<defaultValue property="pageSize">0</defaultValue>
+		</initialization>
+	</component>
+</sdkExtension>
