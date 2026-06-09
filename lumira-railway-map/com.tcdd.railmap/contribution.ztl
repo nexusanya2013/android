@@ -26,6 +26,8 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	String getNetworkUrl() {* return this.networkUrl; *}
 	void setNetworkFormat(/* auto|geojson|topojson|kml|gpx|json */ String value) {* this.networkFormat = value; *}
 	String getNetworkFormat() {* return this.networkFormat; *}
+	void setWithCredentials(boolean value) {* this.withCredentials = value; *}
+	boolean getWithCredentials() {* return this.withCredentials; *}
 	void setNetworkGeoJson(String value) {* this.networkGeoJson = value; *}
 	String getNetworkGeoJson() {* return this.networkGeoJson; *}
 	void setSegmentIdProperty(String value) {* this.segmentIdProperty = value; *}

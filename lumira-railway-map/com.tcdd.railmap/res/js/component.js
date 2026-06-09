@@ -23,7 +23,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	var cfg = {
 		// data + network  (defaults match TCDD "hat_kesim_veri_" GeoJSON)
 		segmentDimension: "", segmentIdProperty: "Hat_kesim", segmentNameProperty: "Tanim",
-		networkUrl: "", networkGeoJson: "", networkFormat: "auto", aggregate: "last", bindConfig: "",
+		networkUrl: "", networkGeoJson: "", networkFormat: "auto", aggregate: "last", bindConfig: "", withCredentials: false,
 		// layers
 		baseLayerTitle: "Demiryolu Ağı", baseLayerVisible: true,
 		layerColors: "traffic,blue,rdylgn,heat,purple,viridis", visibleLayers: "",
@@ -147,20 +147,30 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	//  2. network loading
 	// ======================================================================
 	function ensureNetwork() {
-		var key = (cfg.networkGeoJson ? ("inline:" + cfg.networkGeoJson.length) : ("url:" + cfg.networkUrl)) + "|" + cfg.networkFormat + "|" + cfg.segmentIdProperty + "|" + cfg.segmentNameProperty;
+		var key = (cfg.networkGeoJson ? ("inline:" + cfg.networkGeoJson.length) : ("url:" + cfg.networkUrl)) + "|" + cfg.networkFormat + "|" + cfg.segmentIdProperty + "|" + cfg.segmentNameProperty + "|" + cfg.withCredentials;
 		if (key === loadedNetworkKey && baseFeatures.length) { rebuildLayers(); return; }
 		loadedNetworkKey = key;
 
 		var inline = ("" + (cfg.networkGeoJson || "")).replace(/^\s+|\s+$/g, "");
 		if (inline.length) { parseAndSet(inline); return; }
 		if (!cfg.networkUrl) { status("Ağ kaynağı tanımlı değil (URL veya inline)"); return; }
+
+		// mixed-content pre-check (https page + http url => browser will block silently)
+		try { if (window.location && ("" + window.location.protocol) === "https:" && /^http:\/\//i.test(cfg.networkUrl)) { status("Karışık içerik: rapor HTTPS, ağ URL'si HTTP. URL'yi https yapın ya da dosyayı yükleyin."); return; } } catch (e) { }
+
 		status("Demiryolu ağı yükleniyor…");
 		try {
 			var xhr = new XMLHttpRequest();
 			xhr.open("GET", cfg.networkUrl, true);
+			if (cfg.withCredentials) { try { xhr.withCredentials = true; } catch (e) { } }
+			xhr.timeout = 30000;
+			xhr.onerror = function () { status("Ağa erişilemedi: CORS / karışık içerik / ağ engeli olabilir. Sunucu 'Access-Control-Allow-Origin' göndermeli ya da dosyayı inline/sürükle-bırak ile yükleyin."); };
+			xhr.ontimeout = function () { status("Ağ isteği zaman aşımına uğradı (30 sn)"); };
 			xhr.onreadystatechange = function () {
 				if (xhr.readyState !== 4) { return; }
 				if (xhr.status >= 200 && xhr.status < 300) { parseAndSet(xhr.responseText); }
+				else if (xhr.status === 0) { status("Ağa erişilemedi (CORS / karışık içerik / ağ). Aynı origin'den sunun, sunucuda CORS açın veya dosyayı yükleyin."); }
+				else if (xhr.status === 401 || xhr.status === 403) { status("Yetki gerekiyor (HTTP " + xhr.status + "). 'Send Credentials' özelliğini açmayı deneyin."); }
 				else { status("Ağ yüklenemedi (HTTP " + xhr.status + ")"); }
 			};
 			xhr.send();
@@ -823,7 +833,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	for (var si = 0; si < styled.length; si++) { accessor(styled[si], restyle); }
 
 	accessor("segmentIdProperty", reload); accessor("segmentNameProperty", reload);
-	accessor("networkUrl", reload); accessor("networkGeoJson", reload); accessor("networkFormat", reload);
+	accessor("networkUrl", reload); accessor("networkGeoJson", reload); accessor("networkFormat", reload); accessor("withCredentials", reload);
 
 	this.metadata = function (value) { if (value === undefined) { return meta; } meta = value; needData = true; return this; };
 	this.data = function (value) { if (value === undefined) { return ds; } ds = value; needData = true; return this; };

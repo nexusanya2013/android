@@ -43,6 +43,8 @@
 			tooltip="Ağ dosyasının adresi (GeoJSON/TopoJSON/KML/GPX/JSON). Örn: https://bopwin.tcdd.gov.tr/convertedson.json" />
 		<property id="networkFormat" title="Network Format" type="String" group="2 - Ağ"
 			tooltip="Ağ formatı: auto (otomatik algıla), geojson, topojson, kml, gpx, json." />
+		<property id="withCredentials" title="Send Credentials (CORS)" type="boolean" group="2 - Ağ"
+			tooltip="URL'den yüklerken çerez/kimlik bilgisi gönder (intranet/oturum korumalı sunucular için). Sunucunun Access-Control-Allow-Credentials:true ve belirli origin döndürmesi gerekir." />
 		<property id="networkGeoJson" title="Network (inline)" type="ScriptText" group="2 - Ağ"
 			tooltip="Ağı doğrudan metin olarak gömün (her format). URL/CORS sorunluysa veya offline için idealdir." />
 		<property id="segmentIdProperty" title="Segment Id Property" type="String" group="2 - Ağ"
@@ -170,6 +172,7 @@
 			<defaultValue property="segmentIdProperty">Hat_kesim</defaultValue>
 			<defaultValue property="segmentNameProperty">Tanim</defaultValue>
 			<defaultValue property="networkFormat">auto</defaultValue>
+			<defaultValue property="withCredentials">false</defaultValue>
 			<defaultValue property="aggregate">last</defaultValue>
 			<defaultValue property="baseLayerTitle">Demiryolu Ağı</defaultValue>
 			<defaultValue property="baseLayerVisible">true</defaultValue>
