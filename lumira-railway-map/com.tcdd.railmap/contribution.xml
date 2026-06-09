@@ -88,6 +88,7 @@
 		<property id="heatRadius" title="Heatmap Radius" type="int" group="4 - Sembol" tooltip="Isı haritası (heatmap) nokta yarıçapı (px)." />
 		<property id="heatRamp" title="Heatmap Ramp" type="String" group="4 - Sembol" tooltip="Isı haritası renk rampası (heat, viridis, blue …)." />
 		<property id="showLayerTypeSelector" title="Show Layer Type Selector" type="boolean" group="4 - Sembol" tooltip="Katman kontrolünde her katman için tip seçim kutusu göster." />
+		<property id="showMeasureSelector" title="Show Measure Selector" type="boolean" group="4 - Sembol" tooltip="Bir veri kaynağında birden çok ölçü varsa, katman kontrolünde o kaynak için ölçü seçim açılır kutusu göster (ölçüler arası geçiş)." />
 
 		<!-- ====================== 5 - HARİTA GÖRÜNÜMÜ ================== -->
 		<property id="initialLat" title="Initial Latitude" type="float" group="5 - Harita Görünümü" tooltip="Başlangıç merkez enlemi." />
@@ -188,6 +189,7 @@
 			<defaultValue property="heatRadius">26</defaultValue>
 			<defaultValue property="heatRamp">heat</defaultValue>
 			<defaultValue property="showLayerTypeSelector">true</defaultValue>
+			<defaultValue property="showMeasureSelector">true</defaultValue>
 			<defaultValue property="initialLat">39.2</defaultValue>
 			<defaultValue property="initialLng">35.2</defaultValue>
 			<defaultValue property="initialZoom">6</defaultValue>

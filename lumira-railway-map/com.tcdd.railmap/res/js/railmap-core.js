@@ -413,7 +413,7 @@ if (!window.TCDDRailMap) {
 		MapEngine.prototype.setTile = function (url, subs, opacity) {
 			if (!url) { this.tile = null; }
 			else { this.tile = { url: url, subs: (subs && subs.length) ? subs : ["a", "b", "c"], opacity: (opacity == null ? 1 : opacity) }; }
-			this.tileCache = {};
+			this.tileCache = {}; this._tileKeys = [];
 			this.scheduleRender();
 		};
 
@@ -501,11 +501,16 @@ if (!window.TCDDRailMap) {
 		MapEngine.prototype._tileImage = function (url) {
 			var img = this.tileCache[url];
 			if (img) { return img; }
+			this._tileKeys = this._tileKeys || [];
+			if (this._tileKeys.length > 400) {                          // cap cache to avoid unbounded growth
+				var drop = this._tileKeys.splice(0, 120);
+				for (var d = 0; d < drop.length; d++) { delete this.tileCache[drop[d]]; }
+			}
 			img = new Image(); img.crossOrigin = "anonymous";
 			var self = this;
 			img.onload = function () { self.scheduleRender(); };
 			img.onerror = function () { img._failed = true; };
-			img.src = url; this.tileCache[url] = img;
+			img.src = url; this.tileCache[url] = img; this._tileKeys.push(url);
 			return img;
 		};
 

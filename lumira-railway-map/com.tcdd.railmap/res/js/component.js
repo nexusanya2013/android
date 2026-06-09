@@ -31,7 +31,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 		// symbology
 		symbology: "ramp", classMethod: "quantile", classCount: 5, minWidth: 2, maxWidth: 14, layerConfig: "",
 		// layer render type
-		layerType: "line", bubbleMinRadius: 4, bubbleMaxRadius: 26, heatRadius: 26, heatRamp: "heat", showLayerTypeSelector: true,
+		layerType: "line", bubbleMinRadius: 4, bubbleMaxRadius: 26, heatRadius: 26, heatRamp: "heat", showLayerTypeSelector: true, showMeasureSelector: true,
 		// map view
 		initialLat: 39.2, initialLng: 35.2, initialZoom: 6, minZoom: 2, maxZoom: 18, fitNetworkOnLoad: true,
 		// basemap / tiles
@@ -58,6 +58,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	var baseFeatures = [], measureOrder = [], scriptLayers = {};
 	var uploadedLayers = [], _uploadSeq = 0;        // file/script added geometry layers
 	var measureTypeOverride = {}, baseType = "line";  // per-layer render type (runtime)
+	var activeMeasureBySource = {};                   // source key -> active measure layer id
 	var LAYER_TYPES = [["line", "Çizgi"], ["point", "Nokta"], ["marker", "İşaretçi"], ["bubble", "Balon"], ["heatmap", "Isı Haritası"]];
 	var loadedNetworkKey = null, needData = false, needNetwork = false;
 	var ui = {}, vcTimer = null;
@@ -301,8 +302,8 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 
 		// measure layers (need base geometry to colour)
 		if (baseFeatures.length) {
-			var maps = buildMeasureMaps(), rs = ramps(), ov = layerOverrides(), visList = parseVisibleList(), i;
-			for (i = 0; i < measureOrder.length; i++) { addMeasureLayer(measureOrder[i], maps[measureOrder[i]], rs[i % rs.length], decideVisible(measureOrder[i], i, visList), null, ov[measureOrder[i]]); }
+			var maps = buildMeasureMaps(), rs = ramps(), ov = layerOverrides(), visList = parseVisibleList(), i, L;
+			for (i = 0; i < measureOrder.length; i++) { L = addMeasureLayer(measureOrder[i], maps[measureOrder[i]], rs[i % rs.length], decideVisible(measureOrder[i], i, visList), null, ov[measureOrder[i]]); L.source = "main"; L.measure = measureOrder[i]; }
 
 			// extra independent data-source bindings (Data B/C/D) -> their own layers
 			var bc = bindConfigObj(), slots = [["B", dsB], ["C", dsC], ["D", dsD]], si = measureOrder.length;
@@ -312,12 +313,13 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 				for (var k = 0; k < r.order.length; k++) {
 					var mt = r.order[k];
 					var title = (c.title ? (r.order.length > 1 ? c.title + " · " + mt : c.title) : mt);
-					addMeasureLayer(title, r.maps[mt], c.ramp || rs[si % rs.length], c.visible !== false, "s" + name + "::" + k, { type: c.type, ramp: c.ramp, symbology: c.symbology, classMethod: c.classMethod, classCount: c.classCount });
+					L = addMeasureLayer(title, r.maps[mt], c.ramp || rs[si % rs.length], c.visible !== false, "s" + name + "::" + k, { type: c.type, ramp: c.ramp, symbology: c.symbology, classMethod: c.classMethod, classCount: c.classCount });
+					L.source = name; L.measure = mt;
 					si++;
 				}
 			}
 
-			for (var id in scriptLayers) { if (scriptLayers.hasOwnProperty(id)) { var sl = scriptLayers[id]; addMeasureLayer(sl.title || id, sl.values, sl.ramp || rs[si % rs.length], sl.visible !== false, id, sl.cfg); si++; } }
+			for (var id in scriptLayers) { if (scriptLayers.hasOwnProperty(id)) { var sl = scriptLayers[id]; L = addMeasureLayer(sl.title || id, sl.values, sl.ramp || rs[si % rs.length], sl.visible !== false, id, sl.cfg); L.source = "script"; L.measure = sl.title || id; si++; } }
 		}
 
 		layoutOverlays();
@@ -483,9 +485,67 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 			head.onclick = function () { var open = body.style.display === "none"; body.style.display = open ? "" : "none"; caret.innerHTML = open ? "&#9652;" : "&#9662;"; };
 		}
 		var mode = ("" + cfg.layerControlMode).toLowerCase();
-		if (mode === "dropdown") { buildDropdownControl(body); }
-		else { for (var i = 0; i < engine.layers.length; i++) { body.appendChild(layerRow(engine.layers[i], mode === "radio")); } }
+		if (mode === "dropdown") { buildDropdownControl(body); return; }
+
+		// base + uploaded layers: one row each
+		var i, L;
+		for (i = 0; i < engine.layers.length; i++) { L = engine.layers[i]; if (L.kind === "base" || L.kind === "upload") { body.appendChild(layerRow(L, false)); } }
+
+		// measure layers grouped by source; with >1 measure and selector on -> a measure dropdown
+		var groups = [], byKey = {};
+		for (i = 0; i < engine.layers.length; i++) {
+			L = engine.layers[i]; if (L.kind !== "measure") { continue; }
+			var key = L.source || "main";
+			if (!byKey[key]) { byKey[key] = { key: key, layers: [] }; groups.push(byKey[key]); }
+			byKey[key].layers.push(L);
+		}
+		for (i = 0; i < groups.length; i++) {
+			var g = groups[i];
+			if (cfg.showMeasureSelector && mode !== "radio" && g.layers.length > 1) { body.appendChild(measureGroupRow(g)); }
+			else { for (var j = 0; j < g.layers.length; j++) { body.appendChild(layerRow(g.layers[j], mode === "radio")); } }
+		}
 	}
+	function sourceBadge(key) {
+		if (key === "main" || key === "script") { return ""; }
+		var c = bindConfigObj()[key];
+		return (c && c.title) ? c.title : ("Kaynak " + key);
+	}
+	// one row representing a multi-measure source: [visible] [swatch] [measure ▼] [type ▼]
+	function measureGroupRow(g) {
+		var active = null, j;
+		for (j = 0; j < g.layers.length; j++) { if (activeMeasureBySource[g.key] === g.layers[j].id) { active = g.layers[j]; } }
+		if (!active) { for (j = 0; j < g.layers.length; j++) { if (g.layers[j].visible) { active = g.layers[j]; break; } } }
+		if (!active) { active = g.layers[0]; }
+		activeMeasureBySource[g.key] = active.id;
+
+		var row = el("div", "display:flex;align-items:center;gap:6px;padding:3px 0;line-height:1.3;", null);
+		var cb = el("input", "margin:0;flex:none;", row); cb.type = "checkbox"; cb.checked = !!active.visible;
+		el("span", "display:inline-block;width:18px;height:6px;border-radius:2px;flex:none;background:" + swatch(active) + ";", row);
+		var badge = sourceBadge(g.key);
+		if (badge) { txt(el("span", "font-size:9px;color:" + theme().sub + ";flex:none;max-width:46px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;", row), badge); }
+
+		var msel = el("select", "flex:1;min-width:0;font-size:11px;border:1px solid " + theme().bd + ";border-radius:3px;background:" + theme().btn + ";color:" + theme().fg + ";", row);
+		for (j = 0; j < g.layers.length; j++) { var o = el("option", null, msel); o.value = g.layers[j].id; txt(o, g.layers[j].measure || g.layers[j].title); if (g.layers[j].id === active.id && active.visible) { o.selected = true; } }
+		var oall = el("option", null, msel); oall.value = "__all__"; txt(oall, "▣ Tümü");
+		if (allVisible(g)) { oall.selected = true; }
+		msel.title = "Ölçü seç";
+		msel.onchange = function () {
+			if (msel.value === "__all__") { for (var x = 0; x < g.layers.length; x++) { engine.setLayerVisible(g.layers[x].id, true); } }
+			else { activeMeasureBySource[g.key] = msel.value; for (var y = 0; y < g.layers.length; y++) { engine.setLayerVisible(g.layers[y].id, g.layers[y].id === msel.value); } cfg.selectedLayer = msel.value; }
+			buildLayerControl(); buildLegend(); engine.scheduleRender(); fireToggle();
+		};
+
+		cb.onchange = function () { var tgt = (msel.value === "__all__") ? null : msel.value; if (tgt) { engine.setLayerVisible(tgt, cb.checked); } else { for (var x = 0; x < g.layers.length; x++) { engine.setLayerVisible(g.layers[x].id, cb.checked); } } cfg.selectedLayer = tgt || g.layers[0].id; buildLegend(); engine.scheduleRender(); fireToggle(); };
+
+		if (cfg.showLayerTypeSelector) {
+			var tsel = el("select", "flex:none;font-size:10px;border:1px solid " + theme().bd + ";border-radius:3px;background:" + theme().btn + ";color:" + theme().fg + ";", row);
+			for (j = 0; j < LAYER_TYPES.length; j++) { var op = el("option", null, tsel); op.value = LAYER_TYPES[j][0]; txt(op, LAYER_TYPES[j][1]); if ((active.type || "line") === LAYER_TYPES[j][0]) { op.selected = true; } }
+			tsel.title = "Katman tipi";
+			tsel.onchange = function () { for (var x = 0; x < g.layers.length; x++) { that.setLayerType(g.layers[x].id, tsel.value); } };
+		}
+		return row;
+	}
+	function allVisible(g) { for (var i = 0; i < g.layers.length; i++) { if (!g.layers[i].visible) { return false; } } return true; }
 	function buildDropdownControl(body) {
 		var base = engine.getLayer("__base__");
 		if (base) { body.appendChild(layerRow(base, false)); }
@@ -749,7 +809,7 @@ sap.designstudio.sdk.Component.subclass("com.tcdd.railmap.RailwayMap", function 
 	var plain = ["baseLayerTitle", "layerControlTitle", "layerControlMode", "legendTitle", "selectedSegment", "selectedSegmentName", "selectedLayer",
 		"initialLat", "initialLng", "initialZoom", "minZoom", "maxZoom", "tileOpacity", "tileUrl", "tileSubdomains", "basemap",
 		"showLayerControl", "layerControlCollapsed", "showLegend", "showTooltip", "tooltipShowMeasures", "tooltipProperties",
-		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl", "allowUpload", "uploadMode", "showLayerTypeSelector",
+		"showZoomControl", "showToolbar", "showSearch", "showScaleBar", "showCoordinates", "showBasemapControl", "allowUpload", "uploadMode", "showLayerTypeSelector", "showMeasureSelector",
 		"fitNetworkOnLoad", "backgroundColor", "highlightColor", "uiTheme", "title", "subtitle", "valueUnit",
 		"centerLat", "centerLng", "currentZoom"];
 	for (var pi = 0; pi < plain.length; pi++) { accessor(plain[pi]); }

@@ -1,175 +1,148 @@
 # TCDD Railway Map — SAP Lumira Designer 2.4 SDK Bileşeni
 
-Hafif, hızlı ve **bağımlılıksız** bir profesyonel harita/analitik bileşeni.
-Demiryolu ağını katman katman gösterir; veri kaynağından bağlanan ölçüleri
-**hat kesimi bazında** dağıtır; sürekli renk, **sınıflı (graduated)**, **kategorik**
-veya **kalınlık (width)** sembolojisiyle görselleştirir; katmanları dropdown /
-onay kutusu / radyo ile yönetir; yön okları, animasyonlu akış, etiketler, legend,
-ölçek çubuğu, arama, PNG dışa aktarım ve çoklu altlık (basemap) sunar.
+Hafif, hızlı ve **bağımlılıksız** profesyonel bir harita/analitik bileşeni.
+Demiryolu ağını katman katman gösterir; ölçüleri **hat kesimi bazında** dağıtır;
+her katman **ayrı bir render tipi** (çizgi / nokta / işaretçi / balon / ısı
+haritası) ve **ayrı bir veri kaynağı/ölçü** kullanabilir. Sürükle-bırak ile
+yerel dosya yüklenir; sınıflandırma, kategorik renk, etiket/ok/akış, legend,
+ölçek, arama, PNG dışa aktarım ve çoklu altlık (basemap) içerir.
 
-> **Bağımsız çalışır:** Leaflet / Google Maps / API anahtarı yoktur. Saf
-> JavaScript + HTML5 Canvas → hızlı açılır, offline çalışır, üçüncü taraf bir
-> API'nin kullanımdan kalkmasından etkilenmez. İsteğe bağlı XYZ tile altlığı
-> tarayıcı tarafından çekilir; erişim yoksa düz zemine düşer.
+> **Bağımsız çalışır:** Leaflet / Google Maps / API anahtarı yoktur — saf
+> JavaScript + HTML5 Canvas. Hızlı açılır, offline çalışır, bir 3. taraf API'nin
+> kalkmasından etkilenmez. (İsteğe bağlı XYZ tile altlığı tarayıcıdan çekilir.)
 >
-> **TCDD verisine hazır:** varsayılan `Segment Id = Hat_kesim`,
-> `Segment Name = Tanim` (ör. `hat_kesim_veri_.geojson`).
+> **TCDD verisine hazır:** varsayılan `Segment Id = Hat_kesim`, `Name = Tanim`.
 
 ---
 
-## 1. Veri akışı (mantık)
+## 1. Veri akışı
 
 ```
- Veri Kaynağı (metadata+tuples)         Ağ Kaynağı (URL/inline, çok format)
-        │ buildMeasureMaps()                    │ parseNetwork() → GeoJSON
-        │ (+aggregate: sum/avg/…)               │ normalizeGeoJson()
-        ▼                                       ▼
-   {ölçü: {Hat_kesim: değer}}  ── join ──►  feature.id (Hat_kesim)
-        │                       (key↔id)
+ Veri kaynakları                     Ağ kaynağı (URL / inline / sürükle-bırak)
+ Data / B / C / D (metadata+tuples)  GeoJSON · TopoJSON · KML · GPX · JSON
+        │ parseSource() + aggregate          │ parseNetwork() → GeoJSON
+        ▼                                     ▼  normalizeGeoJson() (+anchor)
+  {ölçü: {Hat_kesim: değer}} ── join (key↔id) ──► feature
+        │                                     │
+        ▼                                     ▼
+  rebuildLayers(): taban + her ölçü/kaynak için katman + yüklenen katmanlar
+        │  sembol: ramp/graduated/categorical/width · tip: line/point/marker/bubble/heatmap
         ▼
-   rebuildLayers() + sembGoloji (ramp/graduated/categorical/width)
-        ├─ Katman 0: Tüm ağ (taban)
-        ├─ Katman 1..N: her ölçü (renk/sınıf/kalınlık)  ← aç/kapat
-        ▼
-   MapEngine (Canvas): pan/zoom, casing, ok, akış, etiket, legend, arama…
+  MapEngine (Canvas): pan/zoom/box-zoom, casing, ok, akış, etiket, legend, arama…
 ```
 
-## 2. Klasör yapısı
-
-```
-com.tcdd.railmap/
-├── META-INF/MANIFEST.MF      OSGi bundle
-├── plugin.xml                SDK extension point
-├── contribution.xml          bileşen + ~70 özellik (her birinde Türkçe tooltip)
-├── contribution.ztl          BIAL script arayüzü (tüm get/set + metotlar)
-└── res/
-    ├── icon.png
-    └── js/
-        ├── railmap-core.js   Canvas motoru + format ayrıştırıcılar + sınıflandırma
-        └── component.js      SDK tutkalı (veri, katman, sembGoloji, arayüz)
-samples/railway-network.sample.geojson   Hat_kesim/Tanim örnek ağ
-build.sh                      dağıtılabilir JAR üretir
-```
-
-## 3. Kurulum
+## 2. Kurulum
 
 `Tools ▸ Install Extension to SAP Lumira Designer…` ile `dist/com.tcdd.railmap_*.jar`
-dosyasını yükleyin, Designer'ı yeniden başlatın. Bileşen: **TcddMaps ▸ Railway Map**.
-Kaynaktan üretmek için: `bash build.sh`.
+yüklenir, Designer yeniden başlatılır. Palet: **TcddMaps ▸ Railway Map**.
+Kaynaktan: `bash build.sh`.
 
-## 4. Hızlı başlangıç
+## 3. Hızlı başlangıç
 
-1. Bileşeni tuvale ekleyin.
-2. **Network Source URL** → ağ dosyanız (ör. `https://bopwin.tcdd.gov.tr/convertedson.json`)
-   veya **Network (inline)**. **Network Format** = `auto`.
-3. **Segment Id Property** = `Hat_kesim`, **Segment Name Property** = `Tanim` (varsayılan).
-4. **Data Source** → satırlarda hat kesim boyutu, sütunlarda ölçüler.
-5. **Segment Dimension** → hat kesim boyutunun teknik adı.
+1. Bileşeni ekleyin. **Network Source URL** (veya **inline** / sürükle-bırak).
+2. **Segment Id Property** = `Hat_kesim`, **Segment Name Property** = `Tanim`.
+3. **Data Source** → satırlarda hat kesim boyutu, sütunlarda ölçüler.
+4. **Segment Dimension** → hat kesim boyutunun teknik adı.
 
-## 5. Desteklenen ağ formatları
+## 4. Katman tipleri (her katman ayrı)
 
-| Format | Algılama | Notlar |
-|--------|----------|--------|
-| GeoJSON | `FeatureCollection`/`Feature` | LineString, MultiLineString, Polygon, Point |
-| TopoJSON | `type:"Topology"` | arc çözümü (delta+quantize) |
-| KML | `<kml>`/`<Placemark>` | LineString/Polygon/Point, `<ExtendedData>` → özellik |
-| GPX | `<gpx>` | `trk/trkseg/trkpt`, `rte`, `wpt` |
-| Düz JSON | dizi `[…]` | `[{"Hat_kesim","Tanim","coordinates":[[lng,lat]…]}]` |
+`Layer Type` (genel) veya katman kontrolündeki tip seçici / `setLayerType(id,type)`:
 
-WGS84 `[boylam, enlem]` beklenir (içeride Web Mercator'a dönüştürülür).
-
-## 6. Sembolizasyon
-
-`Symbology` özelliği veya `setSymbology(...)`:
-
-| Mod | Açıklama |
+| Tip | Açıklama |
 |-----|----------|
-| **ramp** | sürekli renk geçişi (min–max) |
-| **graduated** | sınıflı renk; `Class Method` = quantile / equal / **jenks** (doğal kırılımlar), `Class Count` |
-| **categorical** | ayrık değerlere ayrı renkler |
-| **width** | değere göre çizgi kalınlığı (`Min/Max Width`) |
+| **line / multiline** | hat çizimi (varsayılan); casing, ok, akış, etiket destekler |
+| **point** | her hat kesiminin temsilî noktasında daire |
+| **marker** | harita iğnesi (pin) |
+| **bubble** | değere orantılı daire (alan-orantılı) |
+| **heatmap** | yoğunluk ısı haritası (değer ağırlıklı; bağımlılıksız) |
 
-Legend, seçilen sembolojiye göre kendini uyarlar (gradient / sınıf aralıkları /
-kategori listesi / kalınlık örneği).
+## 5. Sembolizasyon (renk)
 
-## 7. Katman bazında ayar (kodsuz)
+`Symbology`: **ramp** (sürekli) · **graduated** (sınıflı: quantile/equal/**jenks**) ·
+**categorical** (ayrık) · **width** (kalınlık). Legend sembolojiye göre uyarlanır.
 
-`Per-layer Config (JSON)` ile her ölçüye ayrı ayar:
+## 6. Çok ölçü / çok kaynak — her katman farklı olabilir
 
-```json
-{
-  "Tonaj":   { "ramp":"heat", "symbology":"graduated", "classMethod":"jenks", "classCount":6, "arrows":true, "labels":true, "opacity":85 },
-  "Gecikme": { "ramp":"rdylgn", "symbology":"width", "minWidth":2, "maxWidth":16, "flow":true }
-}
-```
+* **Aynı kaynak, çok ölçü:** her ölçü ayrı katman; her birinin kendi tipi/rampası.
+* **Ölçüler arası geçiş:** bir kaynakta >1 ölçü varsa katman kontrolünde **ölçü
+  açılır seçicisi** çıkar (▣ Tümü ile hepsini gösterebilirsiniz).
+* **Farklı veri kaynakları:** ana `Data Source`'a ek **Data Source B / C / D**
+  bağlayın (tamamen farklı kaynaklar olabilir). `Binding Config (JSON)`:
+  ```json
+  { "B": { "title":"Bütçe", "segDim":"ZHATKESIM", "ramp":"blue", "type":"bubble" },
+    "C": { "title":"Geçen Yıl", "ramp":"gray", "type":"line" } }
+  ```
+* **Tam esneklik (script):** her kaynağı okuyup ayrı katmana besleyin:
+  `setLayerData("butce","Bütçe", jsonString, "blue", "bubble")`.
 
-## 8. Çalışma anı (script / BIAL)
+> Not: Lumira'da `metadata` çoğunlukla ortaktır; farklı kaynakların etiket
+> eşleşmesini garanti için slot başına `segDim` verin veya script yolunu kullanın.
+
+## 7. Dosya yükleme → ayrı katmanlar
+
+Araç çubuğundaki ⬆ düğmesi veya **sürükle-bırak** ile yerel dosya yükleyin
+(GeoJSON/TopoJSON/KML/GPX/JSON, çoklu seçim). **Upload Mode**:
+`layer` (her dosya ayrı katman) · `base` (taban ağı değiştir) · `append` (tabana ekle).
+Tamamen tarayıcı tarafında, oturum içidir (kaydedilmez).
+
+## 8. Etkileşim & arayüz
+
+Pan (sürükle) · zoom (tekerlek/çift-tık/+−/klavye) · **kutu-zoom (Shift+sürükle)**.
+Araç çubuğu: sığdır · yükle · ara · PNG · tam ekran. Ayrıca altlık seçici,
+katman kontrolü (checkbox/radio/dropdown + tip & ölçü seçicileri), legend,
+ölçek çubuğu, koordinat, başlık/alt başlık, **light/dark** tema.
+**Tooltip:** segmentin tüm ölçü değerleri (renk noktalı) + seçili feature alanları.
+
+## 9. Script (BIAL) API — özet
 
 ```javascript
-// Aktif ölçü / katman
+// katman / ölçü / tip
 RAILWAYMAP_1.setActiveMeasure("Tonaj");
-RAILWAYMAP_1.showOnlyLayer("Gecikme");
-RAILWAYMAP_1.showLayer("Tonaj");  RAILWAYMAP_1.hideLayer("Demiryolu Ağı");
+RAILWAYMAP_1.showOnlyLayer("Gecikme");   RAILWAYMAP_1.setLayerVisible("Bütçe", true);
+RAILWAYMAP_1.setLayerType("Tonaj","bubble");      // line|point|marker|bubble|heatmap
 RAILWAYMAP_1.setLayerOpacity("Tonaj", 70);
-RAILWAYMAP_1.getMeasures();            // "Tonaj,Gecikme,Hız"
+RAILWAYMAP_1.getMeasures();   RAILWAYMAP_1.getVisibleLayers();
 
-// Sembolizasyon canlı değişimi
-RAILWAYMAP_1.setSymbology("graduated");
-RAILWAYMAP_1.setClassification("jenks", 6);
-RAILWAYMAP_1.setArrows(true); RAILWAYMAP_1.setFlowAnimation(true);
-RAILWAYMAP_1.setLabelsOn(true); RAILWAYMAP_1.setCasing(true);
+// sembol / sınıf / dekor
+RAILWAYMAP_1.setSymbology("graduated");  RAILWAYMAP_1.setClassification("jenks", 6);
+RAILWAYMAP_1.setArrows(true);  RAILWAYMAP_1.setFlowAnimation(true);  RAILWAYMAP_1.setLabelsOn(true);
 
-// Script ile katman besleme
-RAILWAYMAP_1.setLayerData("bakim","Bakım",'[{"segment":"ANK-ESK-01","value":0.8}]',"heat");
-RAILWAYMAP_1.removeLayer("bakim");
+// script-besili / ek geometri katmanları
+RAILWAYMAP_1.setLayerData("bakim","Bakım", json, "heat", "bubble");
+RAILWAYMAP_1.addNetworkLayer("baglanti","Bağlantı Hatları", geojsonString, "auto");
+RAILWAYMAP_1.removeNetworkLayer("baglanti");   RAILWAYMAP_1.clearUploads();
 
-// Altlık / seçim / arama / dışa aktarım
+// altlık / seçim / arama / dışa aktarım / navigasyon
 RAILWAYMAP_1.setBasemap("carto-dark");
-RAILWAYMAP_1.selectSegment("ANK-KAY-04");  RAILWAYMAP_1.clearSelection();
-RAILWAYMAP_1.search("Sivas");              // ilk eşleşmeye gider, id döner
-RAILWAYMAP_1.exportPng();                  // PNG indirir
-
-// Navigasyon
-RAILWAYMAP_1.zoomToSegment("SVS-ERZ-06");
-RAILWAYMAP_1.fitToNetwork();
-RAILWAYMAP_1.setView(39.93, 32.85, 7);
-RAILWAYMAP_1.getZoom(); RAILWAYMAP_1.getCenterLat(); RAILWAYMAP_1.getCenterLng();
+RAILWAYMAP_1.selectSegment("132-H-2773");  RAILWAYMAP_1.clearSelection();
+RAILWAYMAP_1.search("Sivas");   RAILWAYMAP_1.exportPng();
+RAILWAYMAP_1.zoomToSegment("SVS-ERZ-06");  RAILWAYMAP_1.fitToNetwork();
+RAILWAYMAP_1.setView(39.93, 32.85, 7);  RAILWAYMAP_1.getZoom();
 ```
-
-## 9. Etkileşim & arayüz
-
-* **Pan**: sürükle · **Zoom**: tekerlek / çift tık / +- düğmeleri / `+ -` tuşları ·
-  **Kutu-zoom**: Shift + sürükle · **Klavye**: ok tuşları kaydırır.
-* **Araç çubuğu** (sol üst): tüm ağa sığdır, ara, PNG indir, tam ekran.
-* **Altlık kutusu**, **katman kontrolü** (checkbox/radio/dropdown), **legend**,
-  **ölçek çubuğu**, **koordinat** göstergesi, **başlık/alt başlık**, **light/dark** tema.
-* **Tooltip**: bir hat kesimine gelince adı, ID'si ve **tüm ölçü değerleri** renk
-  noktalarıyla; `Tooltip Properties` ile ek feature alanları.
 
 ## 10. Olaylar
 
 * **onSelect** — hat kesimine tıklayınca (`selectedSegment/Name/Layer`).
-* **onLayerToggle** — katman açılıp kapatılınca (`selectedLayer`).
+* **onLayerToggle** — katman aç/kapat (`selectedLayer`).
 * **onDoubleClick** — haritada çift tık.
 * **onViewChange** — pan/zoom sonrası (gecikmeli); `centerLat/centerLng/currentZoom`.
 
 ## 11. Özellik grupları (tasarımcı panelinde tooltipli)
 
-`1-Veri · 2-Ağ · 3-Katmanlar · 4-Sembol · 5-Harita Görünümü · 6-Altlık ·
-7-Stil · 8-Etiket/Ok/Akış · 9-Biçim · 10-Legend/İpucu · 11-Arayüz ·
-12-Seçim · 13-Olaylar`
+`1-Veri (Data, B, C, D, Binding Config) · 2-Ağ · 3-Katmanlar · 4-Sembol (+ tip,
+bubble/heat, seçiciler) · 5-Harita Görünümü · 6-Altlık · 7-Stil · 8-Etiket/Ok/Akış ·
+9-Biçim · 10-Legend/İpucu · 11-Arayüz · 12-Seçim · 13-Olaylar`
 
-Renk rampaları: `traffic, rdylgn, blue, green, heat, purple, viridis, cool, gray`.
+Rampalar: `traffic, rdylgn, blue, green, heat, purple, viridis, cool, gray`.
 Altlıklar: `osm, carto-light, carto-dark, carto-voyager, none, custom`.
 
-## 12. Notlar
+## 12. Notlar & kalite
 
 * **CORS:** URL'den çekilen ağ farklı kaynaktaysa sunucu
-  `Access-Control-Allow-Origin` göndermelidir; mümkün değilse **inline** kullanın.
-* **Performans:** görünmeyen feature'lar elenir (bbox kırpma), çizim
-  `requestAnimationFrame` ile birleşir; akış animasyonu yalnız etkinken çalışır;
+  `Access-Control-Allow-Origin` göndermeli; mümkün değilse **inline**/yükleme kullanın.
+* **Performans:** görünmeyen feature elenir (bbox), çizim `requestAnimationFrame`
+  ile birleşir, tile önbelleği sınırlanır, akış animasyonu yalnız etkinken döner,
   jenks büyük veride otomatik örneklenir.
-* **PNG dışa aktarım** vektör + zemini içerir (tile'lar CORS taint'i önlemek için
-  dışarıda bırakılır).
-* **Test:** format ayrıştırıcıları, sınıflandırma/jenks ve uçtan uca bileşen akışı
-  Node testleriyle doğrulanmıştır.
+* **PNG dışa aktarım** vektör + zemini içerir (tile'lar CORS taint'i önlemek için hariç).
+* **Test:** parser'lar, sınıflandırma/jenks, render tipleri, çok-kaynak bağlama,
+  ölçü seçici, yükleme ve uçtan uca akış Node testleriyle doğrulanmıştır (38 onay).

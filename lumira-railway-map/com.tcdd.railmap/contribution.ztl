@@ -76,6 +76,8 @@ class com.tcdd.railmap.RailwayMap extends Component {
 	String getHeatRamp() {* return this.heatRamp; *}
 	void setShowLayerTypeSelector(boolean value) {* this.showLayerTypeSelector = value; *}
 	boolean getShowLayerTypeSelector() {* return this.showLayerTypeSelector; *}
+	void setShowMeasureSelector(boolean value) {* this.showMeasureSelector = value; *}
+	boolean getShowMeasureSelector() {* return this.showMeasureSelector; *}
 
 	/* ---- map view ---- */
 	void setInitialLat(float value) {* this.initialLat = value; *}
