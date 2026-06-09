@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <linearGradient id="dist2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0a4a66"/><stop offset=".5" stop-color="#2b8cbe"/><stop offset="1" stop-color="#9fe0ff"/></linearGradient>
+    <radialGradient id="mapbg" cx="50%" cy="40%" r="75%"><stop offset="0" stop-color="#0e2233"/><stop offset="1" stop-color="#060f18"/></radialGradient>
+    <filter id="sh2" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000" flood-opacity=".45"/></filter>
+    <style>
+      .glass{fill:#0e2336;fill-opacity:.72;stroke:#3a6f93;stroke-opacity:.6}
+      .h{fill:#8fc3e0;font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+      .kpi{fill:#eaf3fa;font-size:26px;font-weight:700}
+      .unit{fill:#9fb6c9;font-size:12px}
+      .lbl{fill:#a9c0d2;font-size:12px}.val{fill:#e3eef6;font-size:12px}
+      .title{fill:#eef6fc;font-size:22px;font-weight:700;letter-spacing:1px}
+      .ln{fill:none;stroke:#2f6e92;stroke-width:1.6;opacity:.75}
+      .lnHi{fill:none;stroke:#6fd0ff;stroke-width:4;filter:drop-shadow(0 0 5px #6fd0ff)}
+      .chip{fill:#15334b;stroke:#27506e}.acc{fill:#37a3d6}.new{fill:#2bb673}
+    </style>
+    <clipPath id="full"><rect x="0" y="64" width="1600" height="836"/></clipPath>
+  </defs>
+
+  <!-- full-bleed map -->
+  <rect width="1600" height="900" fill="url(#mapbg)"/>
+  <g clip-path="url(#full)">
+    <g stroke="#173049" stroke-width="1" opacity=".5"><path d="M0 260 H1600 M0 420 H1600 M0 580 H1600 M0 740 H1600 M300 64 V900 M600 64 V900 M900 64 V900 M1200 64 V900"/></g>
+    <path class="ln" d="M180 440 C360 400 520 380 720 400 S1040 460 1240 380 1420 360 1520 380"/>
+    <path class="ln" d="M260 620 C440 600 620 540 820 560 S1120 600 1360 540"/>
+    <path class="ln" d="M720 400 C740 470 780 540 820 560"/>
+    <path class="ln" d="M1240 380 C1280 460 1320 520 1360 540"/>
+    <path class="ln" d="M420 240 C560 320 660 360 720 400"/>
+    <path class="ln" d="M1120 250 C1180 320 1210 350 1240 380"/>
+    <path class="ln" d="M300 380 C360 420 400 470 440 600" opacity=".5"/>
+    <path class="ln" d="M900 560 C960 620 1010 660 1080 700" opacity=".5"/>
+    <path class="lnHi" d="M620 380 C740 380 800 410 820 480 S900 600 1000 600"/>
+    <circle cx="620" cy="380" r="5" fill="#6fd0ff"/><circle cx="1000" cy="600" r="5" fill="#6fd0ff"/>
+  </g>
+
+  <!-- top bar -->
+  <rect width="1600" height="64" fill="#0a1c2c"/>
+  <circle cx="34" cy="32" r="17" fill="none" stroke="#7fb7d6" stroke-width="2"/><text x="34" y="37" text-anchor="middle" fill="#7fb7d6" font-size="11" font-weight="700">TCDD</text>
+  <text x="800" y="40" text-anchor="middle" class="title">KAPASİTE PLAN DETAYI — HARİTA MERKEZLİ</text>
+  <g>
+    <rect class="chip" x="1140" y="18" width="100" height="28" rx="14"/><text x="1190" y="36" text-anchor="middle" class="val">PLANMESAFE ▾</text>
+    <rect class="chip" x="1248" y="18" width="60" height="28" rx="14"/><text x="1278" y="36" text-anchor="middle" class="val">Ay ▾</text>
+    <rect class="chip" x="1316" y="18" width="74" height="28" rx="14"/><text x="1353" y="36" text-anchor="middle" class="val">2026 ▾</text>
+    <rect class="chip" x="1398" y="18" width="84" height="28" rx="14"/><text x="1440" y="36" text-anchor="middle" class="val">GRUP2 ▾</text>
+    <rect class="acc" x="1492" y="18" width="92" height="28" rx="6"/><text x="1538" y="36" text-anchor="middle" fill="#06202e" font-size="12" font-weight="700">⤓ Dışa Aktar</text>
+  </g>
+
+  <!-- glass KPI strip floating over the map -->
+  <g filter="url(#sh2)">
+    <g transform="translate(20,84)"><rect width="296" height="84" rx="10" class="glass"/><text x="16" y="26" class="h">Toplam Mesafe</text><text x="16" y="60" class="kpi">12.480 <tspan class="unit">km</tspan></text></g>
+    <g transform="translate(330,84)"><rect width="296" height="84" rx="10" class="glass"/><text x="16" y="26" class="h">Hat Kesimi</text><text x="16" y="60" class="kpi">978</text></g>
+    <g transform="translate(640,84)"><rect width="296" height="84" rx="10" class="glass"/><text x="16" y="26" class="h">Ort. Hız G/D</text><text x="16" y="60" class="kpi">78<tspan class="unit"> / 74</tspan></text></g>
+    <g transform="translate(950,84)"><rect width="296" height="84" rx="10" class="glass"/><text x="16" y="26" class="h">Toplam Süre</text><text x="16" y="60" class="kpi">1.842 <tspan class="unit">sa</tspan></text></g>
+  </g>
+
+  <!-- right floating: measure switcher + legend + top list -->
+  <g transform="translate(1300,190)" filter="url(#sh2)">
+    <rect width="284" height="372" rx="10" class="glass"/>
+    <text x="16" y="28" fill="#eaf3fa" font-size="14" font-weight="700">Ölçü / Katman</text>
+    <rect x="16" y="40" width="252" height="30" rx="6" fill="#0e2336" stroke="#27506e"/><text x="30" y="60" class="val">Planlanan Mesafe ▾</text>
+    <rect x="16" y="78" width="252" height="30" rx="6" fill="#0e2336" stroke="#27506e"/><text x="30" y="98" class="val">Sembol: Çizgi · Renk: Mesafe ▾</text>
+    <text x="16" y="134" class="h">Lejant</text>
+    <rect x="16" y="142" width="252" height="12" rx="3" fill="url(#dist2)"/>
+    <text x="16" y="170" class="lbl" font-size="9">0</text><text x="258" y="170" text-anchor="end" class="lbl" font-size="9">450.000</text>
+    <text x="16" y="198" class="h">En Uzun 5 Kesim</text>
+    <g font-size="12" transform="translate(0,210)">
+      <text x="16" y="16" fill="#cfe3f2">Doğançay–Eskişehir</text><text x="268" y="16" text-anchor="end" class="acc">165.7k</text>
+      <text x="16" y="40" fill="#cfe3f2">Doğançay–YHT Bilecik</text><text x="268" y="40" text-anchor="end" class="acc">73.3k</text>
+      <text x="16" y="64" fill="#cfe3f2">İzmit–Sapanca</text><text x="268" y="64" text-anchor="end" class="acc">32.3k</text>
+      <text x="16" y="88" fill="#cfe3f2">YHT Bilecik–Bozüyük</text><text x="268" y="88" text-anchor="end" class="acc">32.2k</text>
+      <text x="16" y="112" fill="#cfe3f2">Sapanca–Doğançay</text><text x="268" y="112" text-anchor="end" class="acc">19.7k</text>
+    </g>
+  </g>
+
+  <!-- map toolbar left -->
+  <g transform="translate(20,190)"><rect width="28" height="104" rx="6" fill="#0e2336cc" stroke="#27506e"/>
+    <text x="14" y="22" text-anchor="middle" fill="#cfe3f2" font-size="16">+</text>
+    <text x="14" y="46" text-anchor="middle" fill="#cfe3f2" font-size="16">−</text>
+    <text x="14" y="72" text-anchor="middle" fill="#cfe3f2" font-size="12">⤢</text>
+    <text x="14" y="96" text-anchor="middle" fill="#cfe3f2" font-size="12">⤓</text>
+  </g>
+
+  <!-- bottom slide-up table drawer -->
+  <g transform="translate(0,640)" filter="url(#sh2)">
+    <rect width="1600" height="260" fill="#0a1a28" fill-opacity=".94"/>
+    <rect x="740" y="-12" width="120" height="6" rx="3" fill="#3a6f93"/>
+    <text x="20" y="30" fill="#eaf3fa" font-size="14" font-weight="700">Hat Kesimi Detayları</text>
+    <text x="200" y="30" class="lbl">▲ aşağıdan yukarı açılır çekmece (gizle/göster)</text>
+    <rect x="1180" y="14" width="220" height="24" rx="12" fill="#0e2336" stroke="#27506e"/><text x="1196" y="30" class="lbl">🔍 Ara…</text>
+    <rect x="1482" y="14" width="70" height="24" rx="6" class="acc"/><text x="1517" y="30" text-anchor="middle" fill="#06202e" font-size="11" font-weight="700">⤓ CSV</text>
+    <g transform="translate(0,46)"><rect width="1600" height="30" fill="#12304890"/>
+      <g fill="#9fb6c9" font-size="11"><text x="20" y="20">Kod</text><text x="150" y="20">1. İstasyon</text><text x="330" y="20">2. İstasyon</text><text x="520" y="20">Mesafe</text><text x="640" y="20">Y.Süre G/D</text><text x="820" y="20">Yük Süre G/D</text><text x="1010" y="20">Y.Hız G/D</text><text x="1200" y="20">Yük Hız G/D</text></g>
+    </g>
+    <g transform="translate(0,76)" font-size="12" fill="#cfe3f2">
+      <g><rect width="1600" height="30" fill="#0f2435"/><text x="20" y="20">1540-2435</text><text x="150" y="20">Doğançay</text><text x="330" y="20">Eskişehir</text><text x="520" y="20" fill="#eaf3fa">165.694</text><text x="640" y="20">145 / 176</text><text x="820" y="20">306 / 295</text><text x="1010" y="20" fill="#6fd0ff">69 / 56</text><text x="1200" y="20" fill="#ffb454">32 / 34</text></g>
+      <g transform="translate(0,30)"><rect width="1600" height="30" fill="#0c1e2e"/><text x="20" y="20">1540-1712</text><text x="150" y="20">Doğançay</text><text x="330" y="20">YHT Bilecik</text><text x="520" y="20" fill="#eaf3fa">73.267</text><text x="640" y="20">23 / 22</text><text x="820" y="20" fill="#7f93a5">— / —</text><text x="1010" y="20" fill="#6fd0ff">194 / 196</text><text x="1200" y="20" fill="#ffe6b0">DIF0</text></g>
+      <g transform="translate(0,60)"><rect width="1600" height="30" fill="#0f2435"/><text x="20" y="20">1570-1615</text><text x="150" y="20">İzmit</text><text x="330" y="20">Sapanca</text><text x="520" y="20" fill="#eaf3fa">32.288</text><text x="640" y="20" fill="#7f93a5">— / —</text><text x="820" y="20">58 / 63</text><text x="1010" y="20" fill="#ffe6b0">DIF0</text><text x="1200" y="20" fill="#bff0c8">33 / 31</text></g>
+    </g>
+  </g>
+
+  <text x="20" y="186" font-size="11" fill="#2bb673" font-weight="700">▲ Cam (glass) KPI kartları haritanın üstünde · daha geniş harita</text>
+</svg>

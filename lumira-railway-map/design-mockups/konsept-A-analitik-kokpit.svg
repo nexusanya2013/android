@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c1f31"/><stop offset="1" stop-color="#081522"/>
+    </linearGradient>
+    <linearGradient id="dist" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0a4a66"/><stop offset=".5" stop-color="#2b8cbe"/><stop offset="1" stop-color="#9fe0ff"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#143049"/><stop offset="1" stop-color="#102537"/>
+    </linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity=".35"/></filter>
+    <clipPath id="mapClip"><rect x="312" y="84" width="872" height="520" rx="8"/></clipPath>
+    <style>
+      .h{fill:#7fb7d6;font-size:11px;letter-spacing:.6px;text-transform:uppercase}
+      .kpi{fill:#eaf3fa;font-size:30px;font-weight:700}
+      .unit{fill:#88a6bd;font-size:12px}
+      .lbl{fill:#9fb6c9;font-size:12px}
+      .val{fill:#dfeaf3;font-size:12px}
+      .title{fill:#eef6fc;font-size:22px;font-weight:700;letter-spacing:1px}
+      .badge{fill:#1f6f9c}
+      .acc{fill:#37a3d6}
+      .grid{stroke:#21425c;stroke-width:1}
+      .ln{fill:none;stroke:#2f6e92;stroke-width:1.6;opacity:.8}
+      .lnHi{fill:none;stroke:#6fd0ff;stroke-width:4;filter:drop-shadow(0 0 4px #6fd0ff)}
+      .chip{fill:#15334b;stroke:#27506e}
+      .new{fill:#2bb673}
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+
+  <!-- top bar -->
+  <rect width="1600" height="64" fill="#0a1c2c"/>
+  <circle cx="34" cy="32" r="17" fill="none" stroke="#7fb7d6" stroke-width="2"/><text x="34" y="37" text-anchor="middle" fill="#7fb7d6" font-size="11" font-weight="700">TCDD</text>
+  <text x="800" y="40" text-anchor="middle" class="title">KAPASİTE PLAN DETAYI — ANALİTİK KOKPİT</text>
+  <!-- filter chips right -->
+  <g>
+    <rect class="chip" x="1140" y="18" width="100" height="28" rx="14"/><text x="1190" y="36" text-anchor="middle" class="val">PLANMESAFE ▾</text>
+    <rect class="chip" x="1248" y="18" width="60" height="28" rx="14"/><text x="1278" y="36" text-anchor="middle" class="val">Ay ▾</text>
+    <rect class="chip" x="1316" y="18" width="74" height="28" rx="14"/><text x="1353" y="36" text-anchor="middle" class="val">2026 ▾</text>
+    <rect class="chip" x="1398" y="18" width="84" height="28" rx="14"/><text x="1440" y="36" text-anchor="middle" class="val">GRUP2 ▾</text>
+    <rect class="acc" x="1492" y="18" width="92" height="28" rx="6"/><text x="1538" y="36" text-anchor="middle" fill="#06202e" font-size="12" font-weight="700">⤓ Dışa Aktar</text>
+  </g>
+  <text x="16" y="58" class="lbl">Son güncelleme: 09.06.2026 10:42 · Filtre: GRUP2 / 2026 / Ay</text>
+
+  <!-- LEFT KPI RAIL -->
+  <g>
+    <!-- 5 KPI cards -->
+    <!-- card template repeated -->
+    <g transform="translate(16,84)">
+      <rect width="284" height="92" rx="8" fill="url(#card)" stroke="#1d3e58" filter="url(#sh)"/>
+      <text x="16" y="26" class="h">Toplam Planlanan Mesafe</text>
+      <text x="16" y="62" class="kpi">12.480 <tspan class="unit">km</tspan></text>
+      <polyline points="180,70 196,58 212,64 228,46 244,52 260,38" class="lnHi" stroke-width="2"/>
+    </g>
+    <g transform="translate(16,184)">
+      <rect width="284" height="92" rx="8" fill="url(#card)" stroke="#1d3e58" filter="url(#sh)"/>
+      <text x="16" y="26" class="h">Toplam Sefer / Hat Kesimi</text>
+      <text x="16" y="62" class="kpi">978 <tspan class="unit">hat kesimi</tspan></text>
+    </g>
+    <g transform="translate(16,284)">
+      <rect width="284" height="92" rx="8" fill="url(#card)" stroke="#1d3e58" filter="url(#sh)"/>
+      <text x="16" y="26" class="h">Ort. Hız (Gidiş / Dönüş)</text>
+      <text x="16" y="62" class="kpi">78 <tspan class="unit">/ 74 km/sa</tspan></text>
+    </g>
+    <g transform="translate(16,384)">
+      <rect width="284" height="92" rx="8" fill="url(#card)" stroke="#1d3e58" filter="url(#sh)"/>
+      <text x="16" y="26" class="h">Toplam Plan Süre</text>
+      <text x="16" y="62" class="kpi">1.842 <tspan class="unit">saat</tspan></text>
+    </g>
+    <!-- donut card: Yolcu / Yük -->
+    <g transform="translate(16,484)">
+      <rect width="284" height="120" rx="8" fill="url(#card)" stroke="#1d3e58" filter="url(#sh)"/>
+      <text x="16" y="26" class="h">Yolcu / Yük Dağılımı</text>
+      <circle cx="74" cy="76" r="32" fill="none" stroke="#27506e" stroke-width="14"/>
+      <circle cx="74" cy="76" r="32" fill="none" stroke="#6fd0ff" stroke-width="14" stroke-dasharray="126 201" transform="rotate(-90 74 76)"/>
+      <text x="74" y="80" text-anchor="middle" fill="#eaf3fa" font-size="14" font-weight="700">63%</text>
+      <rect x="140" y="56" width="12" height="12" rx="2" fill="#6fd0ff"/><text x="158" y="66" class="val">Yolcu 63%</text>
+      <rect x="140" y="82" width="12" height="12" rx="2" fill="#2f6e92"/><text x="158" y="92" class="val">Yük 37%</text>
+    </g>
+  </g>
+
+  <!-- MAP -->
+  <rect x="312" y="84" width="872" height="520" rx="8" fill="#0a1622" stroke="#1d3e58"/>
+  <g clip-path="url(#mapClip)">
+    <rect x="312" y="84" width="872" height="520" fill="#0b1a26"/>
+    <!-- faint province grid -->
+    <g class="grid" opacity=".25">
+      <path d="M312 200 H1184 M312 320 H1184 M312 440 H1184 M450 84 V604 M620 84 V604 M800 84 V604 M980 84 V604"/>
+    </g>
+    <!-- railway-ish network -->
+    <path class="ln" d="M360 360 C480 330 560 300 700 320 S900 360 1040 300"/>
+    <path class="ln" d="M420 480 C540 470 640 420 760 430 S980 470 1120 420"/>
+    <path class="ln" d="M700 320 C720 360 740 420 760 430"/>
+    <path class="ln" d="M1040 300 C1060 360 1080 440 1120 420"/>
+    <path class="ln" d="M520 180 C600 240 660 300 700 320"/>
+    <path class="ln" d="M980 200 C1000 250 1020 280 1040 300"/>
+    <path class="ln" d="M460 300 C500 320 520 340 540 470" opacity=".5"/>
+    <!-- highlighted selected route Doğançay-Eskişehir -->
+    <path class="lnHi" d="M560 300 C640 300 690 320 700 380 S760 470 840 470"/>
+    <circle cx="560" cy="300" r="5" fill="#6fd0ff"/><circle cx="840" cy="470" r="5" fill="#6fd0ff"/>
+  </g>
+  <!-- map toolbar -->
+  <g transform="translate(326,98)">
+    <rect width="26" height="78" rx="5" fill="#0e2336" stroke="#27506e"/>
+    <text x="13" y="20" text-anchor="middle" fill="#cfe3f2" font-size="16">+</text>
+    <text x="13" y="44" text-anchor="middle" fill="#cfe3f2" font-size="16">−</text>
+    <text x="13" y="68" text-anchor="middle" fill="#cfe3f2" font-size="12">⤢</text>
+  </g>
+  <!-- legend -->
+  <g transform="translate(330,540)">
+    <rect width="220" height="50" rx="6" fill="#0e2336cc" stroke="#27506e"/>
+    <text x="12" y="20" class="lbl">Planlanan Mesafe (km)</text>
+    <rect x="12" y="28" width="196" height="10" rx="3" fill="url(#dist)"/>
+    <text x="12" y="49" class="lbl" font-size="9">0</text><text x="196" y="49" class="lbl" font-size="9">450k</text>
+  </g>
+  <text x="780" y="78" text-anchor="middle" class="h">Demiryolu Ağı — ölçüye göre renkli · tıkla → sağ panelde detay</text>
+
+  <!-- RIGHT DETAIL PANEL -->
+  <g transform="translate(1196,84)">
+    <rect width="388" height="520" rx="8" fill="url(#card)" stroke="#1d3e58" filter="url(#sh)"/>
+    <rect width="388" height="40" rx="8" fill="#15334b"/>
+    <text x="16" y="26" fill="#eaf3fa" font-size="14" font-weight="700">Seçili Hat Kesimi · 1540-2435</text>
+    <text x="16" y="64" class="lbl">Doğançay → Eskişehir · Sıra 31</text>
+    <rect x="372" y="6" width="10" height="28"/>
+    <rect x="354" y="10" width="22" height="20" rx="10" class="new"/><text x="365" y="24" text-anchor="middle" fill="#06202e" font-size="9" font-weight="700">Yeni</text>
+
+    <!-- detail KPIs -->
+    <g transform="translate(16,80)">
+      <rect width="174" height="56" rx="6" fill="#102a3f" stroke="#1d3e58"/><text x="12" y="22" class="h">Planlanan Mesafe</text><text x="12" y="44" fill="#eaf3fa" font-size="18" font-weight="700">165.694 km</text>
+      <rect x="184" width="174" height="56" rx="6" fill="#102a3f" stroke="#1d3e58"/><text x="196" y="22" class="h">Yolcu Ort. Hız</text><text x="196" y="44" fill="#eaf3fa" font-size="18" font-weight="700">69 / 56</text>
+    </g>
+
+    <!-- bar chart: Süre Gidiş/Dönüş -->
+    <g transform="translate(16,156)">
+      <text x="0" y="0" class="h">Plan Süre (dk) — Gidiş / Dönüş</text>
+      <g transform="translate(0,16)">
+        <text x="0" y="20" class="lbl">Yolcu</text>
+        <rect x="70" y="8" width="170" height="14" rx="3" fill="#6fd0ff"/><text x="246" y="20" class="val">145</text>
+        <rect x="70" y="26" width="206" height="14" rx="3" fill="#2f6e92"/><text x="282" y="38" class="val">176</text>
+        <text x="0" y="64" class="lbl">Yük</text>
+        <rect x="70" y="52" width="300" height="14" rx="3" fill="#6fd0ff" opacity=".8"/><text x="376" y="64" class="val">306</text>
+        <rect x="70" y="70" width="290" height="14" rx="3" fill="#2f6e92"/><text x="366" y="82" class="val">295</text>
+      </g>
+    </g>
+
+    <!-- speed comparison -->
+    <g transform="translate(16,266)">
+      <text x="0" y="0" class="h">Ortalama Hız (km/sa)</text>
+      <g transform="translate(0,14)">
+        <rect width="358" height="72" rx="6" fill="#102a3f" stroke="#1d3e58"/>
+        <text x="16" y="28" class="lbl">Yolcu Gidiş</text><text x="120" y="28" class="acc" font-size="13" font-weight="700">69</text>
+        <text x="200" y="28" class="lbl">Dönüş</text><text x="270" y="28" class="acc" font-size="13" font-weight="700">56</text>
+        <text x="16" y="56" class="lbl">Yük Gidiş</text><text x="120" y="56" fill="#ffb454" font-size="13" font-weight="700">32</text>
+        <text x="200" y="56" class="lbl">Dönüş</text><text x="270" y="56" fill="#ffb454" font-size="13" font-weight="700">34</text>
+      </g>
+    </g>
+
+    <!-- mini route profile -->
+    <g transform="translate(16,366)">
+      <text x="0" y="0" class="h">Komşu Kesimler (Doğançay hattı)</text>
+      <g transform="translate(0,14)" font-size="12">
+        <rect width="358" height="120" rx="6" fill="#102a3f" stroke="#1d3e58"/>
+        <g fill="#cfe3f2">
+          <text x="14" y="26">1512-1540 · Arifiye–Doğançay</text><text x="330" y="26" text-anchor="end" class="acc">64</text>
+          <text x="14" y="50">1540-1712 · Doğançay–YHT Bilecik</text><text x="330" y="50" text-anchor="end" class="acc">194</text>
+          <text x="14" y="74">1540-2435 · Doğançay–Eskişehir</text><text x="330" y="74" text-anchor="end" fill="#6fd0ff" font-weight="700">69</text>
+          <text x="14" y="98">1615-1540 · Sapanca–Doğançay</text><text x="330" y="98" text-anchor="end" class="acc">70</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- BOTTOM TABLE -->
+  <g transform="translate(16,616)">
+    <rect width="1568" height="276" rx="8" fill="url(#card)" stroke="#1d3e58" filter="url(#sh)"/>
+    <!-- toolbar -->
+    <text x="16" y="26" fill="#eaf3fa" font-size="14" font-weight="700">Hat Kesimi Detayları</text>
+    <rect x="1180" y="12" width="220" height="24" rx="12" fill="#0e2336" stroke="#27506e"/><text x="1196" y="28" class="lbl">🔍 Ara: istasyon / kod…</text>
+    <rect x="1410" y="12" width="64" height="24" rx="6" fill="#15334b" stroke="#27506e"/><text x="1442" y="28" text-anchor="middle" class="val">Sütunlar</text>
+    <rect x="1482" y="12" width="70" height="24" rx="6" class="acc"/><text x="1517" y="28" text-anchor="middle" fill="#06202e" font-size="11" font-weight="700">⤓ CSV</text>
+    <!-- grouped header -->
+    <g transform="translate(0,44)">
+      <rect width="1568" height="46" fill="#13314a"/>
+      <line x1="0" y1="46" x2="1568" y2="46" stroke="#27506e"/>
+      <g fill="#9fb6c9" font-size="11">
+        <text x="14" y="28">Kod</text>
+        <text x="120" y="28">1. İstasyon</text>
+        <text x="300" y="28">2. İstasyon</text>
+        <text x="470" y="28">Mesafe (km)</text>
+        <!-- grouped: Süre -->
+        <text x="600" y="16" fill="#7fb7d6">PLAN SÜRE (dk)</text>
+        <text x="600" y="38">Yolcu G</text><text x="680" y="38">Yolcu D</text><text x="760" y="38">Yük G</text><text x="840" y="38">Yük D</text>
+        <!-- grouped: Hız -->
+        <text x="940" y="16" fill="#7fb7d6">ORT. HIZ (km/sa)</text>
+        <text x="940" y="38">Yolcu G</text><text x="1030" y="38">Yolcu D</text><text x="1120" y="38">Yük G</text><text x="1210" y="38">Yük D</text>
+        <text x="1320" y="28">Trend</text>
+      </g>
+      <line x1="585" y1="6" x2="585" y2="40" stroke="#27506e"/><line x1="925" y1="6" x2="925" y2="40" stroke="#27506e"/><line x1="1300" y1="6" x2="1300" y2="40" stroke="#27506e"/>
+    </g>
+    <!-- rows with conditional formatting -->
+    <g transform="translate(0,90)" font-size="12">
+      <!-- row -->
+      <g><rect width="1568" height="34" fill="#0f2435"/>
+        <text x="14" y="22" fill="#cfe3f2">1540-2435</text><text x="120" y="22" fill="#cfe3f2">Doğançay</text><text x="300" y="22" fill="#cfe3f2">Eskişehir</text>
+        <text x="470" y="22" fill="#eaf3fa">165.694</text>
+        <text x="600" y="22" fill="#cfe3f2">145</text><text x="680" y="22" fill="#cfe3f2">176</text><text x="760" y="22" fill="#cfe3f2">306</text><text x="840" y="22" fill="#cfe3f2">295</text>
+        <text x="940" y="22" fill="#6fd0ff">69</text><text x="1030" y="22" fill="#6fd0ff">56</text>
+        <rect x="1112" y="8" width="34" height="18" rx="4" fill="#7a3b3b"/><text x="1118" y="22" fill="#ffd2d2">32</text>
+        <rect x="1202" y="8" width="34" height="18" rx="4" fill="#7a3b3b"/><text x="1208" y="22" fill="#ffd2d2">34</text>
+        <polyline points="1320,24 1336,18 1352,22 1368,12 1384,16" fill="none" stroke="#6fd0ff" stroke-width="1.5"/>
+      </g>
+      <g transform="translate(0,34)"><rect width="1568" height="34" fill="#0c1e2e"/>
+        <text x="14" y="22" fill="#cfe3f2">1540-1712</text><text x="120" y="22" fill="#cfe3f2">Doğançay</text><text x="300" y="22" fill="#cfe3f2">YHT Bilecik</text>
+        <text x="470" y="22" fill="#eaf3fa">73.267</text>
+        <text x="600" y="22" fill="#cfe3f2">23</text><text x="680" y="22" fill="#cfe3f2">22</text><text x="760" y="22" fill="#7f93a5">—</text><text x="840" y="22" fill="#7f93a5">—</text>
+        <text x="940" y="22" fill="#6fd0ff">194</text><text x="1030" y="22" fill="#6fd0ff">196</text>
+        <rect x="1112" y="8" width="44" height="18" rx="4" fill="#5a4a2a"/><text x="1118" y="22" fill="#ffe6b0">DIF0</text>
+        <rect x="1202" y="8" width="44" height="18" rx="4" fill="#5a4a2a"/><text x="1208" y="22" fill="#ffe6b0">DIF0</text>
+        <polyline points="1320,20 1336,22 1352,14 1368,18 1384,10" fill="none" stroke="#6fd0ff" stroke-width="1.5"/>
+      </g>
+      <g transform="translate(0,68)"><rect width="1568" height="34" fill="#0f2435"/>
+        <text x="14" y="22" fill="#cfe3f2">1615-1512</text><text x="120" y="22" fill="#cfe3f2">Sapanca</text><text x="300" y="22" fill="#cfe3f2">Arifiye</text>
+        <text x="470" y="22" fill="#eaf3fa">7.791</text>
+        <text x="600" y="22" fill="#cfe3f2">6</text><text x="680" y="22" fill="#cfe3f2">6</text><text x="760" y="22" fill="#cfe3f2">10</text><text x="840" y="22" fill="#cfe3f2">22</text>
+        <text x="940" y="22" fill="#6fd0ff">75</text><text x="1030" y="22" fill="#6fd0ff">73</text>
+        <rect x="1112" y="8" width="34" height="18" rx="4" fill="#2e5a3a"/><text x="1118" y="22" fill="#bff0c8">45</text>
+        <rect x="1202" y="8" width="34" height="18" rx="4" fill="#2e5a3a"/><text x="1208" y="22" fill="#bff0c8">45</text>
+        <polyline points="1320,22 1336,16 1352,18 1368,14 1384,12" fill="none" stroke="#6fd0ff" stroke-width="1.5"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- callouts -->
+  <g font-size="11" fill="#2bb673">
+    <text x="20" y="80" font-weight="700">▲ SAMPLE TEXT yerine gerçek KPI kartları</text>
+    <text x="1200" y="78" font-weight="700">▲ Yeni: seçili kesim detay paneli + mini grafikler</text>
+  </g>
+</svg>
