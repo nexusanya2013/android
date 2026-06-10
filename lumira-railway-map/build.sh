@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 OUT_DIR="dist"; mkdir -p "${OUT_DIR}"
-VERSION="1.0.0.$(date +%Y%m%d%H%M)"
+VERSION="${TCDD_VERSION:-1.1.0}.$(date +%Y%m%d%H%M)"
 
 build_one() {
   local DIR="$1" JAR="${OUT_DIR}/$1_${VERSION}.jar"
