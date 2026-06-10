@@ -15,6 +15,7 @@
 	title="TCDD Railway Map" version="1.0"
 	vendor="TCDD">
 
+	<group id="TcddMaps" title="TCDD" tooltip="TCDD özel bileşenleri"/>
 	<component id="RailwayMap" title="Railway Map" group="TcddMaps"
 		icon="res/icon.png" handlerType="div" databound="true" modes="commons m"
 		tooltip="Katmanlı demiryolu ağı haritası; ölçüleri hat kesimi bazında renklendirir, sınıflandırır, etiketler.">

@@ -7,6 +7,7 @@
   Every property carries a Turkish tooltip.
 -->
 <sdkExtension xmlns="http://www.sap.com/bi/zen/sdk" id="com.tcdd.crosstab" title="TCDD Crosstab Grid" version="1.0" vendor="TCDD">
+	<group id="TcddMaps" title="TCDD" tooltip="TCDD özel bileşenleri"/>
 	<component id="Crosstab" title="Crosstab Grid" group="TcddMaps" icon="res/icon.png" handlerType="div" databound="true" modes="commons m"
 		propertyEditorHandler="res/aps/aps.html"
 		tooltip="Modern veri tablosu: hücre içi bar, ısı renklendirme, trend okları, satır içi sparkline ve pasta/donut, sıralama, arama, total, CSV.">
