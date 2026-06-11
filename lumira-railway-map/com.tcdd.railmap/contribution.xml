@@ -12,7 +12,7 @@
 -->
 <sdkExtension xmlns="http://www.sap.com/bi/zen/sdk"
 	id="com.tcdd.railmap"
-	title="TCDD Railway Map" version="1.0"
+	title="TCDD Railway Map" version="1.1"
 	vendor="TCDD">
 
 	<group id="TcddMaps" title="TCDD"/>

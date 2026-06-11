@@ -13,6 +13,11 @@ build_one() {
   [ -d "${DIR}" ] || { echo "skip: ${DIR} yok"; return; }
   sed -i.bak -E "s/^Bundle-Version:.*/Bundle-Version: ${VERSION}/" "${DIR}/META-INF/MANIFEST.MF"
   rm -f "${DIR}/META-INF/MANIFEST.MF.bak"
+  # keep contribution.xml sdkExtension version in sync with Bundle-Version (major.minor) — SDK requires equality
+  local MAJMIN; MAJMIN="$(echo "${VERSION}" | cut -d. -f1-2)"
+  # only the sdkExtension version attribute (NEVER the <?xml ...?> declaration)
+  sed -i.bak -E "/<\\?xml/!s/version=\"[0-9][0-9.]*\"/version=\"${MAJMIN}\"/" "${DIR}/contribution.xml"
+  rm -f "${DIR}/contribution.xml.bak"
   rm -f "${OUT_DIR}/$1_"*.jar
   ( cd "${DIR}" && zip -q -r -X "../${JAR}" META-INF plugin.xml contribution.xml contribution.ztl res -x '*.DS_Store' )
   echo "Built ${JAR}"
